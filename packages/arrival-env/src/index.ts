@@ -19,62 +19,65 @@ export {}
  * }
  * ```
  */
-
-/**
- * Context provided to Symbol.toSExpr implementations
- *
- * These helpers provide semantic control over serialization:
- *
- * - **keyword**: Property names in key-value pairs (`:type`, `:children`)
- *   Use for named properties in your S-expression representation
- *
- * - **symbol**: Unquoted identifiers and references (`map`, `component-uuid`)
- *   Use for entity references, operators, or identifiers that should not be quoted
- *
- * - **quote**: Force a value to be a string literal
- *   Use when a string value might be confused with a symbol
- *
- * - **expr**: Nested S-expressions `(head arg1 arg2)`
- *   Use for complex nested structures
- */
-interface SExprContext {
-  /**
-   * Create a keyword for property names (prefixed with `:`)
-   * @example keyword("type") → :type
-   */
-  keyword: (value: string) => string;
+declare global {
 
   /**
-   * Create an unquoted symbol (for identifiers, operators, references)
-   * @example symbol("target-uuid") → target-uuid (not "target-uuid")
+   * Context provided to Symbol.toSExpr implementations
+   *
+   * These helpers provide semantic control over serialization:
+   *
+   * - **keyword**: Property names in key-value pairs (`:type`, `:children`)
+   *   Use for named properties in your S-expression representation
+   *
+   * - **symbol**: Unquoted identifiers and references (`map`, `component-uuid`)
+   *   Use for entity references, operators, or identifiers that should not be quoted
+   *
+   * - **quote**: Force a value to be a string literal
+   *   Use when a string value might be confused with a symbol
+   *
+   * - **expr**: Nested S-expressions `(head arg1 arg2)`
+   *   Use for complex nested structures
    */
-  symbol: (value: string) => string | SExprSerializable;
+  interface SExprSerializationContext {
+    /**
+     * Create a keyword for property names (prefixed with `:`)
+     * @example keyword("type") → :type
+     */
+    keyword: (value: string) => string;
+
+    /**
+     * Create an unquoted symbol (for identifiers, operators, references)
+     * @example symbol("target-uuid") → target-uuid (not "target-uuid")
+     */
+    symbol: (value: string) => string | SExprSerializable;
+
+    /**
+     * Force a string literal (prevents symbol interpretation)
+     * @example quote("map") → "map" (not the map operator)
+     */
+    quote: (value: string) => string;
+
+    /**
+     * Create a nested S-expression
+     * @example expr("list", 1, 2, 3) → (list 1 2 3)
+     */
+    expr: (head: string | SExprSerializable, ...args: SExprSerializable[]) => SExprSerializable;
+  }
 
   /**
-   * Force a string literal (prevents symbol interpretation)
-   * @example quote("map") → "map" (not the map operator)
+   * Values that can be serialized to S-expressions
    */
-  quote: (value: string) => string;
 
-  /**
-   * Create a nested S-expression
-   * @example expr("list", 1, 2, 3) → (list 1 2 3)
-   */
-  expr: (head: string | SExprSerializable, ...args: SExprSerializable[]) => SExprSerializable;
+  type SExprSerializable =
+    | string
+    | number
+    | bigint
+    | boolean
+    | null
+    | symbol
+    | SExprSerializable[]
+    | { [key: string]: any };
 }
-
-/**
- * Values that can be serialized to S-expressions
- */
-type SExprSerializable =
-  | string
-  | number
-  | bigint
-  | boolean
-  | null
-  | symbol
-  | SExprSerializable[]
-  | { [key: string]: any };
 
 // Define the Symbol.toSExpr protocol globally
 declare global {
@@ -131,7 +134,7 @@ declare global {
      * // → (Reference id :ref target-uuid)
      * ```
      */
-    [Symbol.toSExpr]?: (context: SExprContext) => Array<string | SExprSerializable>;
+    [Symbol.toSExpr]?: (context: SExprSerializationContext) => Array<string | SExprSerializable>;
 
     /**
      * Custom S-expression type name
