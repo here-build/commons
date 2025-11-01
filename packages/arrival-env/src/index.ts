@@ -43,19 +43,25 @@ declare global {
      * Create a keyword for property names (prefixed with `:`)
      * @example keyword("type") → :type
      */
-    keyword: (value: string) => string;
+    keyword: (value: string) => SExprSerializable;
 
     /**
      * Create an unquoted symbol (for identifiers, operators, references)
      * @example symbol("target-uuid") → target-uuid (not "target-uuid")
      */
-    symbol: (value: string) => string | SExprSerializable;
+    symbol: (value: string) => SExprSerializable;
+
+    /**
+     * Create expression quote
+     * @example quote("map") → 'map
+     */
+    quote: (value: string) => SExprSerializable;
 
     /**
      * Force a string literal (prevents symbol interpretation)
      * @example quote("map") → "map" (not the map operator)
      */
-    quote: (value: string) => string;
+    string: (value: string) => SExprSerializable;
 
     /**
      * Create a nested S-expression
