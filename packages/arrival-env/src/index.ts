@@ -46,13 +46,13 @@ declare global {
     keyword: (value: string) => SExprSerializable;
 
     /**
-     * Create an unquoted symbol (for identifiers, operators, references)
+     * Create an explicitly unquoted symbol (for identifiers, operators, references)
      * @example symbol("target-uuid") → target-uuid (not "target-uuid")
      */
     symbol: (value: string) => SExprSerializable;
 
     /**
-     * Create expression quote
+     * Create expression quote. This is NOT quoted string
      * @example quote("map") → 'map
      */
     quote: (value: string) => SExprSerializable;
