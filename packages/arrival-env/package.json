@@ -23,10 +23,14 @@
   ],
   "scripts": {
     "build": "tsc --build",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
   },
   "devDependencies": {
+    "@here.build/eslint-configs": "workspace:^",
     "@here.build/tsconfig": "workspace:^",
+    "eslint": "^9.35.0",
     "typescript": "5.9"
   }
 }
