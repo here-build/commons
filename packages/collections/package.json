@@ -1,0 +1,47 @@
+{
+  "name": "@here.build/collections",
+  "version": "0.1.0",
+  "description": "Collection utilities: DefaultedMap, DefaultedWeakMap, and MobX-reactive variants",
+  "license": "MIT",
+  "author": "here.build",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./mobx": {
+      "types": "./dist/mobx.d.ts",
+      "import": "./dist/mobx.js",
+      "require": "./dist/mobx.js",
+      "default": "./dist/mobx.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist/**/*",
+    "src/**/*"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rm -rf dist",
+    "dev": "tsc -p tsconfig.json --watch",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@here.build/tsconfig": "workspace:^",
+    "mobx": "^6.15.0",
+    "typescript": "5.9"
+  },
+  "peerDependencies": {
+    "mobx": "^6.15.0"
+  },
+  "peerDependenciesMeta": {
+    "mobx": {
+      "optional": true
+    }
+  }
+}
