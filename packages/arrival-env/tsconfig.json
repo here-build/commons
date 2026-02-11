@@ -1,20 +1,8 @@
 {
   "extends": "@here.build/tsconfig/library.json",
   "compilerOptions": {
-    "lib": [
-      "ES2024"
-    ],
-    "rootDir": "./src",
-    "outDir": "./dist"
+    "outDir": "./dist",
+    "rootDir": "./src"
   },
-  "include": [
-    "src/**/*.ts",
-    "src/**/*.tsx"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "src/**/*.test.ts",
-    "src/__tests__/**/*"
-  ]
+  "include": ["src/**/*"]
 }
