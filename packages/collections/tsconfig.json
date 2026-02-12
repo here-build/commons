@@ -2,11 +2,7 @@
   "extends": "@here.build/tsconfig/library.json",
   "compilerOptions": {
     "outDir": "./dist",
-    "rootDir": "./src",
-    "declaration": true,
-    "declarationMap": true,
-    "inlineSourceMap": true,
-    "inlineSources": true
+    "rootDir": "./src"
   },
   "include": ["src/**/*"],
   "exclude": ["dist", "node_modules"]

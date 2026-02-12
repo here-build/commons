@@ -34,7 +34,7 @@
   "devDependencies": {
     "@here.build/tsconfig": "workspace:^",
     "mobx": "^6.15.0",
-    "typescript": "5.9"
+    "typescript": "^5.9.3"
   },
   "peerDependencies": {
     "mobx": "^6.15.0"
