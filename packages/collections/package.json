@@ -29,10 +29,14 @@
     "build": "tsc -p tsconfig.json",
     "clean": "rm -rf dist",
     "dev": "tsc -p tsconfig.json --watch",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {
+    "@here.build/eslint-configs": "workspace:^",
     "@here.build/tsconfig": "workspace:^",
+    "eslint": "^9.39.2",
     "mobx": "^6.15.0",
     "typescript": "^5.9.3"
   },
