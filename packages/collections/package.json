@@ -36,6 +36,7 @@
   "devDependencies": {
     "@here.build/eslint-configs": "workspace:^",
     "@here.build/tsconfig": "workspace:^",
+    "@types/node": "24",
     "eslint": "^9.39.2",
     "mobx": "^6.15.0",
     "typescript": "^5.9.3"
