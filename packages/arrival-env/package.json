@@ -32,8 +32,7 @@
     "src"
   ],
   "scripts": {
-    "build": "tsc --build",
-    "clean": "rm -rf dist",
+    "build": "tsc --build --force",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc --noEmit"
