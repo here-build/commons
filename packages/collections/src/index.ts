@@ -1,1 +1,1 @@
-export { DefaultedMap, DefaultedWeakMap } from "./defaulted-collections.js";
+export * from "./defaulted-collections.js";
