@@ -68,6 +68,12 @@ declare global {
      * @example expr("list", 1, 2, 3) → (list 1 2 3)
      */
     expr: (head: string | SExprSerializable, ...args: SExprSerializable[]) => SExprSerializable;
+
+    /**
+     * Create a Clojure-style tagged literal for language injection
+     * @example tagged("ts", "props.url") → #ts "props.url"
+     */
+    tagged: (tag: string, value: string) => SExprSerializable;
   }
 
   /**
