@@ -1,4 +1,3 @@
-export {}
 /**
  * @here.build/arrival-env
  *
@@ -20,7 +19,6 @@ export {}
  * ```
  */
 declare global {
-
   /**
    * Context provided to Symbol.toSExpr implementations
    *
