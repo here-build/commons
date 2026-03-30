@@ -37,7 +37,7 @@
     "@types/node": "24",
     "eslint": "^9.39.2",
     "mobx": "^6.15.0",
-    "typescript": "^5.9.3"
+    "typescript": "^6.0.2"
   },
   "peerDependencies": {
     "mobx": "^6.15.0"
