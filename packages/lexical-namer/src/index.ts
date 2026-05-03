@@ -15,12 +15,7 @@
  *   priority-namer  : flat pool, one resolution pass
  *   lexical-namer   : tree of pools, one priority-namer pass per scope,
  *                     with parent-chain reservations folded in
- *
- * The flat case (`{ entities: [...] }` with no children) is exactly equivalent
- * to a single priority-namer call.
  */
-
-import { type PrioritizedCandidate } from "@here.build/priority-namer";
 
 /**
  * One node in the lexical scope tree.
@@ -69,16 +64,23 @@ export interface ScopedEntity<E> {
   readonly key: E;
 
   /**
-   * Priority-ordered name candidates. The resolver tries higher-importance
-   * candidates first; on collision (against reservations or ties with other
-   * entities), it walks down to the next candidate.
+   * Priority-keyed name preferences. Higher key = higher priority.
    *
-   * The last candidate should be guaranteed-unique (e.g. UUID-tail-derived).
-   * If all candidates are exhausted at the priority level and a fallback
-   * is still needed, {@link ResolveOptions.fallbackSuffix} produces a
-   * numeric suffix on the final candidate.
+   * Shape choice: `Record<priority, name>` (not `Array<{name, priority}>`)
+   * encodes a structural invariant — at each priority level, exactly one
+   * name. The strategy can't accidentally express "at this priority, try
+   * X then Y" (which would be ambiguous). For multi-step fallback, use
+   * distinct priority values.
+   *
+   * The resolver iterates keys in descending order; on collision it walks
+   * down to the next-highest priority. Number keys are sorted numerically
+   * (so `{ 100: "x", 80: "y" }` is tried as 100 first).
+   *
+   * The lowest-priority entry should be guaranteed-unique (e.g. UUID-tail
+   * derived). When even that collides, {@link ResolveOptions.fallbackSuffix}
+   * produces a numeric suffix on the final entry.
    */
-  readonly candidates: readonly PrioritizedCandidate[];
+  readonly candidates: Readonly<Record<number, string>>;
 }
 
 export interface ResolveOptions<E> {
@@ -173,5 +175,3 @@ export function resolveLexicalNames<E>(
 ): ResolveResult<E> {
   throw new Error("@here.build/lexical-namer: resolveLexicalNames is not yet implemented");
 }
-
-export type { PrioritizedCandidate } from "@here.build/priority-namer";

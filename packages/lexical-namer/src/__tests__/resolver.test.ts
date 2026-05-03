@@ -3,6 +3,10 @@
  * invariant of the lexical-scope resolver. All tests fail with
  * "not yet implemented" until the resolver is built — that's intentional;
  * these tests are the spec the implementation must satisfy.
+ *
+ * Candidate shape note: `candidates` is `Record<priority, name>`. Higher
+ * priority key wins. Sparse — only declared priorities exist; resolver
+ * sorts keys descending.
  */
 
 import { describe, expect, it } from "vitest";
@@ -26,8 +30,8 @@ describe("single scope: trivial assignment", () => {
   it("each entity gets its top-priority candidate when uncontested", () => {
     const r = resolveStrings({
       entities: [
-        { key: "a", candidates: [{ name: "alpha", importance: 100 }] },
-        { key: "b", candidates: [{ name: "beta", importance: 100 }] },
+        { key: "a", candidates: { 100: "alpha" } },
+        { key: "b", candidates: { 100: "beta" } },
       ],
     });
     expect(r.get("a")).toBe("alpha");
@@ -37,9 +41,9 @@ describe("single scope: trivial assignment", () => {
   it("assignment count equals entity count", () => {
     const r = resolveStrings({
       entities: [
-        { key: "a", candidates: [{ name: "alpha", importance: 100 }] },
-        { key: "b", candidates: [{ name: "beta", importance: 100 }] },
-        { key: "c", candidates: [{ name: "gamma", importance: 100 }] },
+        { key: "a", candidates: { 100: "alpha" } },
+        { key: "b", candidates: { 100: "beta" } },
+        { key: "c", candidates: { 100: "gamma" } },
       ],
     });
     expect(r.size).toBe(3);
@@ -55,10 +59,7 @@ describe("single scope: reservations", () => {
       entities: [
         {
           key: "a",
-          candidates: [
-            { name: "alpha", importance: 100 },
-            { name: "alphaPrime", importance: 80 },
-          ],
+          candidates: { 100: "alpha", 80: "alphaPrime" },
         },
       ],
     });
@@ -71,11 +72,7 @@ describe("single scope: reservations", () => {
       entities: [
         {
           key: "a",
-          candidates: [
-            { name: "alpha", importance: 100 },
-            { name: "alphaPrime", importance: 80 },
-            { name: "alphaUltimate", importance: 60 },
-          ],
+          candidates: { 100: "alpha", 80: "alphaPrime", 60: "alphaUltimate" },
         },
       ],
     });
@@ -90,20 +87,8 @@ describe("single scope: ties", () => {
     const r = resolveStrings(
       {
         entities: [
-          {
-            key: "a",
-            candidates: [
-              { name: "shared", importance: 100 },
-              { name: "alpha", importance: 80 },
-            ],
-          },
-          {
-            key: "b",
-            candidates: [
-              { name: "shared", importance: 100 },
-              { name: "beta", importance: 80 },
-            ],
-          },
+          { key: "a", candidates: { 100: "shared", 80: "alpha" } },
+          { key: "b", candidates: { 100: "shared", 80: "beta" } },
         ],
       },
       { onTie: "free" },
@@ -115,8 +100,8 @@ describe("single scope: ties", () => {
   it("tie at top tier with no next tier: both get postfixed", () => {
     const r = resolveStrings({
       entities: [
-        { key: "a", candidates: [{ name: "shared", importance: 100 }] },
-        { key: "b", candidates: [{ name: "shared", importance: 100 }] },
+        { key: "a", candidates: { 100: "shared" } },
+        { key: "b", candidates: { 100: "shared" } },
       ],
     });
     // Default resolveTie: ${name}-${postfix} (postfix = key in our helper)
@@ -128,27 +113,10 @@ describe("single scope: ties", () => {
     const r = resolveStrings(
       {
         entities: [
-          {
-            key: "highA",
-            candidates: [
-              { name: "x", importance: 100 },
-              { name: "alpha", importance: 50 },
-            ],
-          },
-          {
-            key: "highB",
-            candidates: [
-              { name: "x", importance: 100 },
-              { name: "beta", importance: 50 },
-            ],
-          },
-          {
-            key: "low",
-            candidates: [
-              { name: "x", importance: 80 }, // would take 'x' if not burned
-              { name: "gamma", importance: 50 },
-            ],
-          },
+          { key: "highA", candidates: { 100: "x", 50: "alpha" } },
+          { key: "highB", candidates: { 100: "x", 50: "beta" } },
+          // would take 'x' if not burned
+          { key: "low", candidates: { 80: "x", 50: "gamma" } },
         ],
       },
       { onTie: "burn" },
@@ -164,27 +132,9 @@ describe("single scope: ties", () => {
     const r = resolveStrings(
       {
         entities: [
-          {
-            key: "highA",
-            candidates: [
-              { name: "x", importance: 100 },
-              { name: "alpha", importance: 50 },
-            ],
-          },
-          {
-            key: "highB",
-            candidates: [
-              { name: "x", importance: 100 },
-              { name: "beta", importance: 50 },
-            ],
-          },
-          {
-            key: "low",
-            candidates: [
-              { name: "x", importance: 80 },
-              { name: "gamma", importance: 50 },
-            ],
-          },
+          { key: "highA", candidates: { 100: "x", 50: "alpha" } },
+          { key: "highB", candidates: { 100: "x", 50: "beta" } },
+          { key: "low", candidates: { 80: "x", 50: "gamma" } },
         ],
       },
       { onTie: "free" },
@@ -203,14 +153,8 @@ describe("single scope: ladder fallback", () => {
     // Variant "large" in group "type" — would prefer bare, falls to prefixed
     const r = resolveStrings({
       entities: [
-        { key: "prop:large", candidates: [{ name: "large", importance: 100 }] },
-        {
-          key: "variant:large",
-          candidates: [
-            { name: "large", importance: 95 },
-            { name: "typeLarge", importance: 80 },
-          ],
-        },
+        { key: "prop:large", candidates: { 100: "large" } },
+        { key: "variant:large", candidates: { 95: "large", 80: "typeLarge" } },
       ],
     });
     expect(r.get("prop:large")).toBe("large");
@@ -224,12 +168,7 @@ describe("single scope: ladder fallback", () => {
       entities: [
         {
           key: "x",
-          candidates: [
-            { name: "a", importance: 100 },
-            { name: "ab", importance: 80 },
-            { name: "abc", importance: 60 },
-            { name: "abcd", importance: 40 },
-          ],
+          candidates: { 100: "a", 80: "ab", 60: "abc", 40: "abcd" },
         },
       ],
     });
@@ -246,10 +185,7 @@ describe("single scope: exhaustion", () => {
       entities: [
         {
           key: "x",
-          candidates: [
-            { name: "a", importance: 100 },
-            { name: "b", importance: 60 },
-          ],
+          candidates: { 100: "a", 60: "b" },
         },
       ],
     });
@@ -260,20 +196,8 @@ describe("single scope: exhaustion", () => {
     const r = resolveStrings({
       reservations: ["alpha", "beta"],
       entities: [
-        {
-          key: "a",
-          candidates: [
-            { name: "alpha", importance: 100 },
-            { name: "shared", importance: 60 },
-          ],
-        },
-        {
-          key: "b",
-          candidates: [
-            { name: "beta", importance: 100 },
-            { name: "shared", importance: 60 },
-          ],
-        },
+        { key: "a", candidates: { 100: "alpha", 60: "shared" } },
+        { key: "b", candidates: { 100: "beta", 60: "shared" } },
       ],
     });
     expect(r.get("a")).toBe("shared-a");
@@ -293,10 +217,7 @@ describe("scope tree: parent reservations propagate to descendants", () => {
           entities: [
             {
               key: "x",
-              candidates: [
-                { name: "window", importance: 100 },
-                { name: "win", importance: 80 },
-              ],
+              candidates: { 100: "window", 80: "win" },
             },
           ],
         },
@@ -318,11 +239,7 @@ describe("scope tree: parent reservations propagate to descendants", () => {
               entities: [
                 {
                   key: "x",
-                  candidates: [
-                    { name: "a", importance: 100 },
-                    { name: "b", importance: 90 },
-                    { name: "c", importance: 80 },
-                  ],
+                  candidates: { 100: "a", 90: "b", 80: "c" },
                 },
               ],
             },
@@ -335,17 +252,14 @@ describe("scope tree: parent reservations propagate to descendants", () => {
 
   it("child cannot claim a name claimed by ancestor", () => {
     const r = resolveStrings({
-      entities: [{ key: "p", candidates: [{ name: "shared", importance: 100 }] }],
+      entities: [{ key: "p", candidates: { 100: "shared" } }],
       children: [
         {
           id: "c",
           entities: [
             {
               key: "c1",
-              candidates: [
-                { name: "shared", importance: 100 },
-                { name: "alt", importance: 80 },
-              ],
+              candidates: { 100: "shared", 80: "alt" },
             },
           ],
         },
@@ -364,11 +278,11 @@ describe("scope tree: siblings are independent", () => {
       children: [
         {
           id: "left",
-          entities: [{ key: "l", candidates: [{ name: "currentElement", importance: 100 }] }],
+          entities: [{ key: "l", candidates: { 100: "currentElement" } }],
         },
         {
           id: "right",
-          entities: [{ key: "r", candidates: [{ name: "currentElement", importance: 100 }] }],
+          entities: [{ key: "r", candidates: { 100: "currentElement" } }],
         },
       ],
     });
@@ -379,9 +293,9 @@ describe("scope tree: siblings are independent", () => {
   it("three siblings reusing the same name", () => {
     const r = resolveStrings({
       children: [
-        { id: "s1", entities: [{ key: "a", candidates: [{ name: "x", importance: 100 }] }] },
-        { id: "s2", entities: [{ key: "b", candidates: [{ name: "x", importance: 100 }] }] },
-        { id: "s3", entities: [{ key: "c", candidates: [{ name: "x", importance: 100 }] }] },
+        { id: "s1", entities: [{ key: "a", candidates: { 100: "x" } }] },
+        { id: "s2", entities: [{ key: "b", candidates: { 100: "x" } }] },
+        { id: "s3", entities: [{ key: "c", candidates: { 100: "x" } }] },
       ],
     });
     expect(r.get("a")).toBe("x");
@@ -397,13 +311,13 @@ describe("scope tree: siblings are independent", () => {
           {
             id: "A",
             entities: [
-              { key: "a1", candidates: [{ name: "x", importance: 100 }] },
-              { key: "a2", candidates: [{ name: "x", importance: 100 }] },
+              { key: "a1", candidates: { 100: "x" } },
+              { key: "a2", candidates: { 100: "x" } },
             ],
           },
           {
             id: "B",
-            entities: [{ key: "b1", candidates: [{ name: "x", importance: 100 }] }],
+            entities: [{ key: "b1", candidates: { 100: "x" } }],
           },
         ],
       },
@@ -424,11 +338,11 @@ describe("scope tree: claimsByScope and burnedByScope", () => {
     const result = resolveLexicalNames(
       {
         id: "root",
-        entities: [{ key: "p", candidates: [{ name: "outer", importance: 100 }] }],
+        entities: [{ key: "p", candidates: { 100: "outer" } }],
         children: [
           {
             id: "child",
-            entities: [{ key: "c", candidates: [{ name: "inner", importance: 100 }] }],
+            entities: [{ key: "c", candidates: { 100: "inner" } }],
           },
         ],
       },
@@ -442,11 +356,11 @@ describe("scope tree: claimsByScope and burnedByScope", () => {
     const result = resolveLexicalNames(
       {
         // no id at root
-        entities: [{ key: "p", candidates: [{ name: "x", importance: 100 }] }],
+        entities: [{ key: "p", candidates: { 100: "x" } }],
         children: [
           {
             id: "child",
-            entities: [{ key: "c", candidates: [{ name: "y", importance: 100 }] }],
+            entities: [{ key: "c", candidates: { 100: "y" } }],
           },
         ],
       },
@@ -461,13 +375,13 @@ describe("scope tree: claimsByScope and burnedByScope", () => {
       {
         id: "root",
         entities: [
-          { key: "a", candidates: [{ name: "x", importance: 100 }] },
-          { key: "b", candidates: [{ name: "x", importance: 100 }] },
+          { key: "a", candidates: { 100: "x" } },
+          { key: "b", candidates: { 100: "x" } },
         ],
         children: [
           {
             id: "child",
-            entities: [{ key: "c", candidates: [{ name: "y", importance: 100 }] }],
+            entities: [{ key: "c", candidates: { 100: "y" } }],
           },
         ],
       },
@@ -485,21 +399,15 @@ describe("determinism: same input → same output", () => {
     return {
       reservations: ["foo"],
       entities: [
-        {
-          key: "a",
-          candidates: [
-            { name: "foo", importance: 100 },
-            { name: "alpha", importance: 80 },
-          ],
-        },
-        { key: "b", candidates: [{ name: "beta", importance: 100 }] },
+        { key: "a", candidates: { 100: "foo", 80: "alpha" } },
+        { key: "b", candidates: { 100: "beta" } },
       ],
       children: [
         {
           id: "c",
           entities: [
-            { key: "c1", candidates: [{ name: "alpha", importance: 100 }] },
-            { key: "c2", candidates: [{ name: "alpha", importance: 100 }] },
+            { key: "c1", candidates: { 100: "alpha" } },
+            { key: "c2", candidates: { 100: "alpha" } },
           ],
         },
       ],
@@ -515,14 +423,14 @@ describe("determinism: same input → same output", () => {
   it("entity insertion order does not affect output", () => {
     const forward = resolveStrings({
       entities: [
-        { key: "a", candidates: [{ name: "x", importance: 100 }] },
-        { key: "b", candidates: [{ name: "x", importance: 100 }] },
+        { key: "a", candidates: { 100: "x" } },
+        { key: "b", candidates: { 100: "x" } },
       ],
     });
     const reversed = resolveStrings({
       entities: [
-        { key: "b", candidates: [{ name: "x", importance: 100 }] },
-        { key: "a", candidates: [{ name: "x", importance: 100 }] },
+        { key: "b", candidates: { 100: "x" } },
+        { key: "a", candidates: { 100: "x" } },
       ],
     });
     expect(forward.get("a")).toBe(reversed.get("a"));
@@ -532,14 +440,14 @@ describe("determinism: same input → same output", () => {
   it("sibling order does not affect per-sibling assignments", () => {
     const lr = resolveStrings({
       children: [
-        { id: "L", entities: [{ key: "l", candidates: [{ name: "x", importance: 100 }] }] },
-        { id: "R", entities: [{ key: "r", candidates: [{ name: "x", importance: 100 }] }] },
+        { id: "L", entities: [{ key: "l", candidates: { 100: "x" } }] },
+        { id: "R", entities: [{ key: "r", candidates: { 100: "x" } }] },
       ],
     });
     const rl = resolveStrings({
       children: [
-        { id: "R", entities: [{ key: "r", candidates: [{ name: "x", importance: 100 }] }] },
-        { id: "L", entities: [{ key: "l", candidates: [{ name: "x", importance: 100 }] }] },
+        { id: "R", entities: [{ key: "r", candidates: { 100: "x" } }] },
+        { id: "L", entities: [{ key: "l", candidates: { 100: "x" } }] },
       ],
     });
     expect(lr.get("l")).toBe(rl.get("l"));
@@ -554,8 +462,8 @@ describe("custom tie + fallback formatting", () => {
     const r = resolveStrings(
       {
         entities: [
-          { key: "a", candidates: [{ name: "value", importance: 100 }] },
-          { key: "b", candidates: [{ name: "value", importance: 100 }] },
+          { key: "a", candidates: { 100: "value" } },
+          { key: "b", candidates: { 100: "value" } },
         ],
       },
       { resolveTie: (name, postfix) => `${name}_${postfix}` },
@@ -568,7 +476,7 @@ describe("custom tie + fallback formatting", () => {
     const r = resolveStrings(
       {
         reservations: ["x"],
-        entities: [{ key: "a", candidates: [{ name: "x", importance: 100 }] }],
+        entities: [{ key: "a", candidates: { 100: "x" } }],
       },
       { fallbackSuffix: (name, n) => `${name}_v${n}` },
     );
@@ -582,7 +490,7 @@ describe("error cases", () => {
   it("throws when an entity yields no candidates", () => {
     expect(() =>
       resolveStrings({
-        entities: [{ key: "a", candidates: [] }],
+        entities: [{ key: "a", candidates: {} }],
       }),
     ).toThrow();
   });
@@ -592,8 +500,8 @@ describe("error cases", () => {
       resolveStrings(
         {
           entities: [
-            { key: "a", candidates: [{ name: "x", importance: 100 }] },
-            { key: "b", candidates: [{ name: "x", importance: 100 }] },
+            { key: "a", candidates: { 100: "x" } },
+            { key: "b", candidates: { 100: "x" } },
           ],
         },
         { postfixFor: () => "same" },
@@ -618,24 +526,20 @@ describe("realistic shape: component scope with handler sub-scope", () => {
         {
           id: "component",
           entities: [
-            { key: "state:open", candidates: [{ name: "open", importance: 100 }] },
-            { key: "setter:open", candidates: [{ name: "setOpen", importance: 100 }] },
-            { key: "handler:click", candidates: [{ name: "handleClick", importance: 100 }] },
-            { key: "handler:hover", candidates: [{ name: "handleHover", importance: 100 }] },
+            { key: "state:open", candidates: { 100: "open" } },
+            { key: "setter:open", candidates: { 100: "setOpen" } },
+            { key: "handler:click", candidates: { 100: "handleClick" } },
+            { key: "handler:hover", candidates: { 100: "handleHover" } },
           ],
           children: [
             {
               id: "handler:click:body",
               reservations: ["window"],
-              entities: [
-                { key: "param:click", candidates: [{ name: "currentElement", importance: 100 }] },
-              ],
+              entities: [{ key: "param:click", candidates: { 100: "currentElement" } }],
             },
             {
               id: "handler:hover:body",
-              entities: [
-                { key: "param:hover", candidates: [{ name: "currentElement", importance: 100 }] },
-              ],
+              entities: [{ key: "param:hover", candidates: { 100: "currentElement" } }],
             },
           ],
         },
@@ -663,10 +567,7 @@ describe("realistic shape: component scope with handler sub-scope", () => {
               entities: [
                 {
                   key: "local:state",
-                  candidates: [
-                    { name: "window", importance: 100 },
-                    { name: "windowState", importance: 80 },
-                  ],
+                  candidates: { 100: "window", 80: "windowState" },
                 },
               ],
             },
