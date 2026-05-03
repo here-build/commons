@@ -176,6 +176,18 @@ export interface ShapeBinding<E> {
   readonly subKey: E;
   /** Name candidates (same Record<priority, Candidate> form as simple entities). */
   readonly candidates: Readonly<Record<number, Candidate>>;
+  /**
+   * Reference count of this binding's emitted name in the resulting code.
+   * Used as the cost weight when this binding might lose to another in
+   * a cross-scope conflict. Strategy computes from IR walk before resolution.
+   *
+   * The cost model is `usageCount × tierDrop` (priority distance from
+   * preferred candidate). Higher reference counts make degradation more
+   * expensive — the resolver prefers to degrade entities with lower usage.
+   *
+   * Default: 1 (treat all bindings equally if not provided).
+   */
+  readonly usageCount?: number;
 }
 
 /**
@@ -240,6 +252,28 @@ export interface ResolveOptions<E> {
    * inspection of common shapes (`uuid`, `id`, `name` properties).
    */
   describeEntity?: (entity: E) => string;
+
+  /**
+   * Algorithm for cross-scope conflict resolution.
+   *
+   * - **"greedy"** (default): cost-weighted Chow-Hennessy priority coloring
+   *   with Briggs-style optimistic refinement and George-Appel sibling
+   *   coalescing. Polynomial, ~95% optimal in practice, ~100 LOC.
+   *   Sufficient for nearly all real cases at our scale.
+   *
+   * - **"optimal"**: Hungarian / Kuhn-Munkres weighted bipartite matching
+   *   over the full entity set, with cost-matrix encoding of hierarchical
+   *   shadow constraints. O(n³); provably optimal. Use when greedy
+   *   produces measurably bad output.
+   *
+   * - **"exhaustive"**: branch-and-bound or SMT-backed exhaustive search.
+   *   Tractable at our scale; reach for it only when correctness >
+   *   performance and the problem is small enough.
+   *
+   * The cost function is `usageCount × tierDrop` summed across all entities.
+   * The resolver minimizes this sum.
+   */
+  algorithm?: "greedy" | "optimal" | "exhaustive";
 }
 
 export interface ResolveResult<E> {
