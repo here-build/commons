@@ -66,21 +66,56 @@ export interface ScopedEntity<E> {
   /**
    * Priority-keyed name preferences. Higher key = higher priority.
    *
-   * Shape choice: `Record<priority, name>` (not `Array<{name, priority}>`)
-   * encodes a structural invariant — at each priority level, exactly one
-   * name. The strategy can't accidentally express "at this priority, try
-   * X then Y" (which would be ambiguous). For multi-step fallback, use
-   * distinct priority values.
+   * Each value is a {@link Candidate}: either a string (request a fresh
+   * binding under that name) or a {@link ViaPath} (produce an access
+   * expression through an in-scope name without allocating).
    *
-   * The resolver iterates keys in descending order; on collision it walks
-   * down to the next-highest priority. Number keys are sorted numerically
-   * (so `{ 100: "x", 80: "y" }` is tried as 100 first).
+   * The resolver iterates priorities descending. On block (fresh-binding
+   * collides, or via-path's `viaName` not in scope), walks to next priority.
    *
-   * The lowest-priority entry should be guaranteed-unique (e.g. UUID-tail
-   * derived). When even that collides, {@link ResolveOptions.fallbackSuffix}
-   * produces a numeric suffix on the final entry.
+   * Shape choice: `Record<priority, candidate>` encodes "at each priority
+   * level, exactly one candidate" structurally. Strategy can't accidentally
+   * express "at this priority, try X then Y" (ambiguous). For multi-step
+   * fallback, use distinct priority values.
    */
-  readonly candidates: Readonly<Record<number, string>>;
+  readonly candidates: Readonly<Record<number, Candidate>>;
+}
+
+/**
+ * A name candidate.
+ *
+ * - **string**: request a fresh binding allocated under this name. Valid iff
+ *   the name doesn't collide with any reservation or claim in the scope chain.
+ * - **{@link ViaPath}**: produce an access expression through an in-scope name.
+ *   No fresh binding is allocated; the entity's resolution is the expression
+ *   `${viaName}${access}`. Valid iff `viaName` is reserved or claimed in this
+ *   scope or any ancestor.
+ *
+ * The two forms are interleavable in a single ladder. A common pattern for
+ * global references with optional shorthand:
+ *
+ *   {
+ *     100: { viaName: "navigator", access: "" },        // direct, if `navigator` is reserved
+ *     80:  { viaName: "window", access: ".navigator" }, // window-prefixed fallback
+ *   }
+ */
+export type Candidate = string | ViaPath;
+
+/**
+ * Access expression through an in-scope name. The resolved string is the
+ * literal concatenation `${viaName}${access}` — there's no parsing.
+ *
+ * - `access` of "" is the direct-reference case (just `viaName`).
+ * - `access` should include the connector token (`.`, `[`, `?.`).
+ *
+ * Examples:
+ *   { viaName: "window", access: ".location" }   → "window.location"
+ *   { viaName: "navigator", access: "" }         → "navigator"
+ *   { viaName: "props", access: ".className" }   → "props.className"
+ */
+export interface ViaPath {
+  readonly viaName: string;
+  readonly access: string;
 }
 
 export interface ResolveOptions<E> {

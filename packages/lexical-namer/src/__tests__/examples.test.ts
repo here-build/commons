@@ -459,6 +459,129 @@ describe("ex11: handler body has user-declared local that shadows nothing", () =
   });
 });
 
+// ─── Example W1 — window globals: direct-or-prefixed via path candidates ─
+//
+// Two configurations of the same logical reference. Strategy emits both
+// shapes as priority-keyed candidates; resolver picks the higher-priority
+// one whose viaName is in scope.
+//
+// Implicit-globals target (root scope reserves all browser globals):
+//   const link = navigator.userAgent;
+//
+// Explicit-globals target (root scope reserves only `window`/`globalThis`):
+//   const link = window.navigator.userAgent;
+
+describe("ex-W1: window global with implicit-globals target", () => {
+  it("direct reference picked when bare global is reserved", () => {
+    const r = resolve({
+      id: "module",
+      // implicit-globals: browser globals reserved at module scope
+      reservations: ["React", "window", "navigator", "location", "document", "Foo"],
+      children: [
+        {
+          id: "component:Foo",
+          reservations: ["props"],
+          entities: [
+            {
+              key: "ref:navigator",
+              candidates: {
+                100: { viaName: "navigator", access: "" },
+                80: { viaName: "window", access: ".navigator" },
+              },
+            },
+          ],
+        },
+      ],
+    });
+    expect(r.get("ref:navigator")).toBe("navigator");
+  });
+});
+
+describe("ex-W2: window global with explicit-globals target", () => {
+  it("falls to window-prefixed when bare global is NOT reserved", () => {
+    const r = resolve({
+      id: "module",
+      // explicit-globals: only `window`/`globalThis` reserved; `navigator` not
+      reservations: ["React", "window", "globalThis", "Foo"],
+      children: [
+        {
+          id: "component:Foo",
+          reservations: ["props"],
+          entities: [
+            {
+              key: "ref:navigator",
+              candidates: {
+                100: { viaName: "navigator", access: "" },
+                80: { viaName: "window", access: ".navigator" },
+              },
+            },
+          ],
+        },
+      ],
+    });
+    expect(r.get("ref:navigator")).toBe("window.navigator");
+  });
+});
+
+describe("ex-W3: same component referencing both location and navigator", () => {
+  it("each ref independently picks direct or prefixed based on reservations", () => {
+    const r = resolve({
+      id: "module",
+      // Hybrid: navigator reserved, location not
+      reservations: ["React", "window", "navigator", "Foo"],
+      children: [
+        {
+          id: "component:Foo",
+          reservations: ["props"],
+          entities: [
+            {
+              key: "ref:navigator",
+              candidates: {
+                100: { viaName: "navigator", access: "" },
+                80: { viaName: "window", access: ".navigator" },
+              },
+            },
+            {
+              key: "ref:location",
+              candidates: {
+                100: { viaName: "location", access: "" },
+                80: { viaName: "window", access: ".location" },
+              },
+            },
+          ],
+        },
+      ],
+    });
+    expect(r.get("ref:navigator")).toBe("navigator");
+    expect(r.get("ref:location")).toBe("window.location");
+  });
+});
+
+describe("ex-W4: nested member access — window.location.href", () => {
+  it("ViaPath access supports multi-segment chains", () => {
+    const r = resolve({
+      id: "module",
+      reservations: ["React", "window", "Foo"],
+      children: [
+        {
+          id: "component:Foo",
+          reservations: ["props"],
+          entities: [
+            {
+              key: "ref:locationHref",
+              candidates: {
+                100: { viaName: "location", access: ".href" },
+                80: { viaName: "window", access: ".location.href" },
+              },
+            },
+          ],
+        },
+      ],
+    });
+    expect(r.get("ref:locationHref")).toBe("window.location.href");
+  });
+});
+
 // ─── Example 12 ────────────────────────────────────────────────────────
 //
 //   // The most complex shape we currently emit, end-to-end:
