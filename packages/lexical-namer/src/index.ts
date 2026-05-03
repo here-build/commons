@@ -331,21 +331,369 @@ export interface EntityResolution<E> {
 /**
  * Resolve all entities in a scope tree to non-colliding names.
  *
- * Algorithm (specification, not implementation):
+ * v0 implementation: simple form (`candidates`) only. Rich form (`shapes`)
+ * throws an explicit error — that's a forward-compat schema with no v0
+ * implementation.
  *
- * 1. For each scope, compute `effectiveReservations` =
- *    `(this.reservations ∪ ancestors.reservations ∪ ancestors.claims) for all ancestors`
- * 2. Run priority-namer's resolution at each scope using its `entities` and
- *    `effectiveReservations`. Record claims and burned names on the scope.
- * 3. Recurse into children with parent's claims now visible as reservations.
- * 4. Sibling scopes are independent — neither sees the other's claims.
+ * Algorithm:
  *
- * Pure function: same input produces same output. No iteration-order
- * dependence (entities are sorted by `compareEntities` internally).
+ * 1. **Pre-pass**: compute `subtreeUserDecls(scope)` per scope = union of
+ *    its own `userDeclarations` plus all descendants'. Used at THIS scope's
+ *    allocation only — not propagated to children (siblings stay independent).
+ *
+ * 2. **DFS allocation**: visit scopes pre-order. For each scope, build
+ *    effective reservations = (ancestors' down-propagated reservations
+ *    ∪ this.reservations ∪ subtreeUserDecls(this) ∪ ancestor claims).
+ *
+ * 3. **Per-scope resolution**: walk priorities descending. At each priority,
+ *    handle ViaPath candidates first (resolve instantly if `viaName` is in
+ *    scope), then string candidates with priority-namer-style symmetric
+ *    tie-break (burn or free). Unresolved entities use last-candidate +
+ *    numeric-suffix fallback.
+ *
+ * 4. **Sibling independence**: child scopes inherit DOWN-propagated
+ *    reservations + ancestor claims, NOT the parent's `subtreeUserDecls`
+ *    aggregation. C1's user declarations are visible to S (parent) but
+ *    NOT to C2 (sibling).
+ *
+ * Pure function: same input produces same output. Entity processing is
+ * sorted by `compareEntities` (default: lexical compare of `postfixFor`).
  */
 export function resolveLexicalNames<E>(
-  _root: ScopeSpec<E>,
-  _options: ResolveOptions<E>,
+  root: ScopeSpec<E>,
+  options: ResolveOptions<E>,
 ): ResolveResult<E> {
-  throw new Error("@here.build/lexical-namer: resolveLexicalNames is not yet implemented");
+  const allResolutions = new Map<E, EntityResolution<E>>();
+  const claimsByScope = new Map<string, ReadonlySet<string>>();
+  const burnedByScope = new Map<string, ReadonlySet<string>>();
+
+  // Pre-pass: compute subtree user-decls per scope (referenced by scope identity).
+  const subtreeUserDecls = new WeakMap<ScopeSpec<E>, Set<string>>();
+  computeSubtreeUserDecls(root, subtreeUserDecls);
+
+  visit(root, new Set(), new Set(), {
+    options,
+    subtreeUserDecls,
+    allResolutions,
+    claimsByScope,
+    burnedByScope,
+  });
+
+  // Build the convenience `assignments` map: entity → primary expression.
+  // Single-facet entities (the v0 default) include their default facet here.
+  const assignments = new Map<E, string>();
+  for (const [k, r] of allResolutions) {
+    if (r.facetExpressions.size === 1) {
+      const [first] = r.facetExpressions.values();
+      if (first !== undefined) assignments.set(k, first);
+    } else {
+      const def = r.facetExpressions.get("default");
+      if (def !== undefined) assignments.set(k, def);
+    }
+  }
+
+  return { assignments, resolutions: allResolutions, claimsByScope, burnedByScope };
+}
+
+// ── Internal implementation ──────────────────────────────────────────
+
+interface VisitContext<E> {
+  options: ResolveOptions<E>;
+  subtreeUserDecls: WeakMap<ScopeSpec<E>, Set<string>>;
+  allResolutions: Map<E, EntityResolution<E>>;
+  claimsByScope: Map<string, ReadonlySet<string>>;
+  burnedByScope: Map<string, ReadonlySet<string>>;
+}
+
+function computeSubtreeUserDecls<E>(
+  scope: ScopeSpec<E>,
+  out: WeakMap<ScopeSpec<E>, Set<string>>,
+): Set<string> {
+  const set = new Set<string>(scope.userDeclarations ?? []);
+  for (const child of scope.children ?? []) {
+    const childDecls = computeSubtreeUserDecls(child, out);
+    for (const d of childDecls) set.add(d);
+  }
+  out.set(scope, set);
+  return set;
+}
+
+function visit<E>(
+  scope: ScopeSpec<E>,
+  ancestorDownReservations: ReadonlySet<string>,
+  ancestorClaims: ReadonlySet<string>,
+  ctx: VisitContext<E>,
+): void {
+  // Effective reservations at THIS scope's allocation:
+  //   ancestor down-propagated ∪ scope's own reservations ∪ subtree user-decls
+  // Note: subtree user-decls includes descendants — propagates up to ancestors
+  // but is NOT passed down to siblings.
+  const effectiveReservations = new Set<string>(ancestorDownReservations);
+  for (const r of scope.reservations ?? []) effectiveReservations.add(r);
+  const subtreeDecls = ctx.subtreeUserDecls.get(scope);
+  if (subtreeDecls) for (const d of subtreeDecls) effectiveReservations.add(d);
+
+  let claimsHere: Set<string> = new Set();
+  let burnedHere: Set<string> = new Set();
+
+  if (scope.entities && scope.entities.length > 0) {
+    const result = resolveScope(scope.entities, effectiveReservations, ancestorClaims, ctx.options);
+    claimsHere = result.claimsHere;
+    burnedHere = result.burnedHere;
+    for (const [k, r] of result.resolutions) {
+      ctx.allResolutions.set(k, r);
+    }
+    if (scope.id !== undefined) {
+      if (claimsHere.size > 0) ctx.claimsByScope.set(scope.id, claimsHere);
+      if (burnedHere.size > 0) ctx.burnedByScope.set(scope.id, burnedHere);
+    }
+  }
+
+  // Recurse into children with DOWN-propagated reservations only.
+  // Children DON'T inherit our subtreeUserDecls aggregation (siblings stay
+  // independent of each other's user decls).
+  const childAncestorDownReservations = new Set<string>(ancestorDownReservations);
+  for (const r of scope.reservations ?? []) childAncestorDownReservations.add(r);
+  // Own user-decls DO propagate down (this scope's own decls are visible to its descendants
+  // — the user code lives at this scope and any inner code references it).
+  for (const d of scope.userDeclarations ?? []) childAncestorDownReservations.add(d);
+
+  const childAncestorClaims = new Set<string>(ancestorClaims);
+  for (const c of claimsHere) childAncestorClaims.add(c);
+
+  for (const child of scope.children ?? []) {
+    visit(child, childAncestorDownReservations, childAncestorClaims, ctx);
+  }
+}
+
+interface ScopeResolveResult<E> {
+  resolutions: Map<E, EntityResolution<E>>;
+  claimsHere: Set<string>;
+  burnedHere: Set<string>;
+}
+
+function resolveScope<E>(
+  entities: readonly ScopedEntity<E>[],
+  effectiveReservations: ReadonlySet<string>,
+  ancestorClaims: ReadonlySet<string>,
+  options: ResolveOptions<E>,
+): ScopeResolveResult<E> {
+  const resolutions = new Map<E, EntityResolution<E>>();
+  const claimsHere = new Set<string>();
+  const burnedHere = new Set<string>();
+  const onTie = options.onTie ?? "burn";
+  const resolveTie = options.resolveTie ?? defaultResolveTie;
+  const fallbackSuffix = options.fallbackSuffix ?? defaultFallbackSuffix;
+  const compareEntities = options.compareEntities ?? defaultCompareEntities(options.postfixFor);
+
+  // Reject rich-shape entities for v0.
+  for (const entity of entities) {
+    if (entity.shapes !== undefined) {
+      throw new Error(
+        `@here.build/lexical-namer v0: rich-shape entities (\`shapes\` field) not yet implemented. ` +
+          `Use simple form (\`candidates\` field) or wait for the rich-form release.`,
+      );
+    }
+    if (!entity.candidates || Object.keys(entity.candidates).length === 0) {
+      throw new Error(
+        `@here.build/lexical-namer: entity has no candidates: ${describeEntity(entity.key, options)}`,
+      );
+    }
+  }
+
+  // Sort entities by stable comparator (deterministic across runs).
+  const sortedEntities = [...entities].sort((a, b) => compareEntities(a.key, b.key));
+
+  // Helper: is name reachable in scope (parent chain reservations or claims, or our own claims)?
+  const isInScope = (name: string): boolean =>
+    effectiveReservations.has(name) || ancestorClaims.has(name) || claimsHere.has(name);
+
+  // Build flat priority-keyed entries across all entities.
+  type Entry = { entity: ScopedEntity<E>; priority: number; candidate: Candidate };
+  const allEntries: Entry[] = [];
+  for (const entity of sortedEntities) {
+    for (const [pStr, cand] of Object.entries(entity.candidates ?? {})) {
+      const priority = Number(pStr);
+      if (!Number.isFinite(priority)) {
+        throw new Error(`Invalid priority key (must be numeric): ${pStr}`);
+      }
+      allEntries.push({ entity, priority, candidate: cand });
+    }
+  }
+
+  // Group entries by priority, descending.
+  const priorities = new Set<number>();
+  for (const e of allEntries) priorities.add(e.priority);
+  const sortedPriorities = [...priorities].sort((a, b) => b - a);
+
+  // Walk priorities; resolve as we go.
+  for (const P of sortedPriorities) {
+    const groupAtP = allEntries.filter((e) => e.priority === P);
+
+    // 1) Resolve ViaPath candidates first — they don't compete for allocation.
+    for (const { entity, candidate } of groupAtP) {
+      if (resolutions.has(entity.key)) continue;
+      if (!isViaPath(candidate)) continue;
+      if (isInScope(candidate.viaName)) {
+        const expr = candidate.viaName + candidate.access;
+        resolutions.set(entity.key, makeSimpleResolution(entity.key, expr, P));
+      }
+    }
+
+    // 2) Collect string candidates from unresolved entities at this priority.
+    type StringEntry = { entity: ScopedEntity<E>; name: string };
+    const stringEntries: StringEntry[] = [];
+    for (const { entity, candidate } of groupAtP) {
+      if (resolutions.has(entity.key)) continue;
+      if (typeof candidate === "string") {
+        stringEntries.push({ entity, name: candidate });
+      }
+    }
+
+    // Group by name.
+    const byName = new Map<string, StringEntry[]>();
+    for (const e of stringEntries) {
+      const list = byName.get(e.name) ?? [];
+      list.push(e);
+      byName.set(e.name, list);
+    }
+    // Process names in deterministic order.
+    const sortedNames = [...byName.keys()].sort();
+
+    for (const name of sortedNames) {
+      const entries = byName.get(name)!;
+      // Skip if name is blocked.
+      if (isInScope(name) || burnedHere.has(name)) continue;
+
+      // Filter to entities that are still active (not yet resolved).
+      const active = entries.filter((e) => !resolutions.has(e.entity.key));
+      if (active.length === 0) continue;
+
+      if (active.length === 1) {
+        const entity = active[0]!.entity;
+        resolutions.set(entity.key, makeSimpleResolution(entity.key, name, P));
+        claimsHere.add(name);
+      } else {
+        // Tie. Two questions:
+        //   1) Is the bare name burned? — yes iff onTie === "burn"
+        //   2) Do tied entities defer to next priority, or postfix here?
+        //      Defer iff ALL tied entities have at least one lower-priority candidate.
+        //      Otherwise (any is exhausted at this priority) symmetric postfix.
+        if (onTie === "burn") burnedHere.add(name);
+        const allHaveLower = active.every(({ entity }) => {
+          const cands = entity.candidates ?? {};
+          return Object.keys(cands).some((k) => Number(k) < P);
+        });
+        if (allHaveLower) {
+          // Defer — entities will be tried at lower priorities. (Bare name
+          // already burned above if onTie === "burn".)
+          continue;
+        }
+        // Exhausted — symmetric postfix across all tied entities.
+        const seenPostfixes = new Set<string>();
+        const sortedActive = [...active].sort((a, b) => compareEntities(a.entity.key, b.entity.key));
+        for (const { entity } of sortedActive) {
+          const postfix = options.postfixFor(entity.key);
+          if (seenPostfixes.has(postfix)) {
+            throw new Error(
+              `priority-namer: postfixFor must be injective on tied entities, but two entities ` +
+                `produced the same postfix "${postfix}" for name "${name}".`,
+            );
+          }
+          seenPostfixes.add(postfix);
+          const finalName = resolveTie(name, postfix);
+          if (claimsHere.has(finalName) || isInScope(finalName)) {
+            throw new Error(
+              `priority-namer: tie-resolved name "${finalName}" collides with an existing claim or reservation.`,
+            );
+          }
+          resolutions.set(entity.key, makeSimpleResolution(entity.key, finalName, P));
+          claimsHere.add(finalName);
+        }
+      }
+    }
+  }
+
+  // Fallback for unresolved entities: numeric-suffix on last string candidate.
+  for (const entity of sortedEntities) {
+    if (resolutions.has(entity.key)) continue;
+    const candidates = entity.candidates ?? {};
+    const sortedKeys = Object.keys(candidates)
+      .map(Number)
+      .sort((a, b) => b - a);
+    if (sortedKeys.length === 0) {
+      throw new Error(`entity has no candidates`);
+    }
+    // Find lowest-priority STRING candidate (the last "fallback" string).
+    let fallbackName: string | null = null;
+    let fallbackPriority = sortedKeys[sortedKeys.length - 1]!;
+    for (const k of sortedKeys.reverse()) {
+      const c = candidates[k];
+      if (typeof c === "string") {
+        fallbackName = c;
+        fallbackPriority = k;
+        break;
+      }
+    }
+    if (fallbackName === null) {
+      throw new Error(
+        `@here.build/lexical-namer: entity ${describeEntity(entity.key, options)} has only ViaPath candidates, ` +
+          `none of which had viaName in scope. ` +
+          `Strategy must include at least one string candidate as a guaranteed-unique fallback.`,
+      );
+    }
+    let attempt = fallbackName;
+    let n = 2;
+    while (isInScope(attempt) || burnedHere.has(attempt)) {
+      attempt = fallbackSuffix(fallbackName, n++);
+    }
+    resolutions.set(entity.key, makeSimpleResolution(entity.key, attempt, fallbackPriority));
+    claimsHere.add(attempt);
+  }
+
+  return { resolutions, claimsHere, burnedHere };
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────
+
+function isViaPath(c: Candidate): c is ViaPath {
+  return typeof c === "object" && c !== null && "viaName" in c;
+}
+
+function makeSimpleResolution<E>(key: E, expression: string, priority: number): EntityResolution<E> {
+  // For simple-form entities (and ViaPath resolutions which don't allocate):
+  //   bindingNames: { [key] → expression } if it's a fresh binding, else empty
+  //   facetExpressions: { "default" → expression }
+  // We can't tell from here whether expression is a fresh binding or a path,
+  // so we record it both places. Consumers using resolutions for rich-form
+  // semantics should distinguish via shape lookup; v0 simple-form consumers
+  // can rely on `assignments` (single-facet convenience).
+  return {
+    selectedShapePriority: priority,
+    bindingNames: new Map([[key, expression]]),
+    facetExpressions: new Map([["default", expression]]),
+  };
+}
+
+const defaultResolveTie = (name: string, postfix: string): string => `${name}-${postfix}`;
+
+const defaultFallbackSuffix = (name: string, n: number): string => `${name}${n}`;
+
+function defaultCompareEntities<E>(postfixFor: (entity: E) => string): (a: E, b: E) => number {
+  return (a, b) => {
+    const pa = postfixFor(a);
+    const pb = postfixFor(b);
+    return pa < pb ? -1 : pa > pb ? 1 : 0;
+  };
+}
+
+function describeEntity<E>(entity: E, options: ResolveOptions<E>): string {
+  if (options.describeEntity) return options.describeEntity(entity);
+  if (entity == null) return String(entity);
+  if (typeof entity === "string") return entity;
+  const e = entity as { uuid?: unknown; id?: unknown; name?: unknown };
+  if (typeof e.uuid === "string") return `entity<uuid=${e.uuid}>`;
+  if (typeof e.id === "string") return `entity<id=${e.id}>`;
+  if (typeof e.name === "string") return `entity<name=${e.name}>`;
+  return String(entity);
 }
