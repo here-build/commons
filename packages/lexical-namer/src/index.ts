@@ -17,6 +17,8 @@
  *                     with parent-chain reservations folded in
  */
 
+import invariant from "tiny-invariant";
+
 /**
  * One node in the lexical scope tree.
  *
@@ -488,18 +490,16 @@ function resolveScope<E>(
 
   // Validate entity shape: exactly one of `candidates` or `shapes` must be present.
   for (const entity of entities) {
-    const hasSimple = entity.candidates && Object.keys(entity.candidates).length > 0;
-    const hasRich = entity.shapes && entity.shapes.length > 0;
-    if (!hasSimple && !hasRich) {
-      throw new Error(
-        `@here.build/lexical-namer: entity has no candidates and no shapes: ${describeEntity(entity.key, options)}`,
-      );
-    }
-    if (hasSimple && hasRich) {
-      throw new Error(
-        `@here.build/lexical-namer: entity has both candidates and shapes; pick one: ${describeEntity(entity.key, options)}`,
-      );
-    }
+    const hasSimple = !!entity.candidates && Object.keys(entity.candidates).length > 0;
+    const hasRich = !!entity.shapes && entity.shapes.length > 0;
+    invariant(
+      hasSimple || hasRich,
+      `@here.build/lexical-namer: entity has no candidates and no shapes: ${describeEntity(entity.key, options)}`,
+    );
+    invariant(
+      !(hasSimple && hasRich),
+      `@here.build/lexical-namer: entity has both candidates and shapes; pick one: ${describeEntity(entity.key, options)}`,
+    );
   }
 
   // Partition entities by form. Simple entities resolve first via the v0
@@ -529,9 +529,7 @@ function resolveScope<E>(
   for (const entity of sortedEntities) {
     for (const [pStr, cand] of Object.entries(entity.candidates ?? {})) {
       const priority = Number(pStr);
-      if (!Number.isFinite(priority)) {
-        throw new Error(`Invalid priority key (must be numeric): ${pStr}`);
-      }
+      invariant(Number.isFinite(priority), `Invalid priority key (must be numeric): ${pStr}`);
       allEntries.push({ entity, priority, candidate: cand });
     }
   }
@@ -609,19 +607,17 @@ function resolveScope<E>(
         const sortedActive = [...active].sort((a, b) => compareEntities(a.entity.key, b.entity.key));
         for (const { entity } of sortedActive) {
           const postfix = options.postfixFor(entity.key);
-          if (seenPostfixes.has(postfix)) {
-            throw new Error(
-              `priority-namer: postfixFor must be injective on tied entities, but two entities ` +
-                `produced the same postfix "${postfix}" for name "${name}".`,
-            );
-          }
+          invariant(
+            !seenPostfixes.has(postfix),
+            `priority-namer: postfixFor must be injective on tied entities, but two entities ` +
+              `produced the same postfix "${postfix}" for name "${name}".`,
+          );
           seenPostfixes.add(postfix);
           const finalName = resolveTie(name, postfix);
-          if (claimsHere.has(finalName) || isInScope(finalName)) {
-            throw new Error(
-              `priority-namer: tie-resolved name "${finalName}" collides with an existing claim or reservation.`,
-            );
-          }
+          invariant(
+            !claimsHere.has(finalName) && !isInScope(finalName),
+            `priority-namer: tie-resolved name "${finalName}" collides with an existing claim or reservation.`,
+          );
           resolutions.set(entity.key, makeSimpleResolution(entity.key, finalName, P));
           claimsHere.add(finalName);
         }
@@ -636,9 +632,7 @@ function resolveScope<E>(
     const sortedKeys = Object.keys(candidates)
       .map(Number)
       .sort((a, b) => b - a);
-    if (sortedKeys.length === 0) {
-      throw new Error(`entity has no candidates`);
-    }
+    invariant(sortedKeys.length > 0, `entity has no candidates`);
     // Find lowest-priority STRING candidate (the last "fallback" string).
     let fallbackName: string | null = null;
     let fallbackPriority = sortedKeys[sortedKeys.length - 1]!;
@@ -650,13 +644,12 @@ function resolveScope<E>(
         break;
       }
     }
-    if (fallbackName === null) {
-      throw new Error(
-        `@here.build/lexical-namer: entity ${describeEntity(entity.key, options)} has only ViaPath candidates, ` +
-          `none of which had viaName in scope. ` +
-          `Strategy must include at least one string candidate as a guaranteed-unique fallback.`,
-      );
-    }
+    invariant(
+      fallbackName !== null,
+      `@here.build/lexical-namer: entity ${describeEntity(entity.key, options)} has only ViaPath candidates, ` +
+        `none of which had viaName in scope. ` +
+        `Strategy must include at least one string candidate as a guaranteed-unique fallback.`,
+    );
     let attempt = fallbackName;
     let n = 2;
     while (isInScope(attempt) || burnedHere.has(attempt)) {
@@ -693,11 +686,10 @@ function resolveRichEntity<E>(
   burnedHere: ReadonlySet<string>,
   options: ResolveOptions<E>,
 ): EntityResolution<E> {
-  if (!entity.shapes || entity.shapes.length === 0) {
-    throw new Error(
-      `@here.build/lexical-namer: rich entity has no shapes: ${describeEntity(entity.key, options)}`,
-    );
-  }
+  invariant(
+    entity.shapes && entity.shapes.length > 0,
+    `@here.build/lexical-namer: rich entity has no shapes: ${describeEntity(entity.key, options)}`,
+  );
   const sortedShapes = [...entity.shapes].sort((a, b) => b.priority - a.priority);
 
   for (const shape of sortedShapes) {
@@ -779,12 +771,11 @@ function resolveRichEntity<E>(
       switch (facetExpr.kind) {
         case "binding": {
           const bindingExpr = bindingNames.get(facetExpr.ref);
-          if (bindingExpr === undefined) {
-            throw new Error(
-              `@here.build/lexical-namer: facet "${facetName}" of entity ` +
-                `${describeEntity(entity.key, options)} references unknown binding subKey.`,
-            );
-          }
+          invariant(
+            bindingExpr !== undefined,
+            `@here.build/lexical-namer: facet "${facetName}" of entity ` +
+              `${describeEntity(entity.key, options)} references unknown binding subKey.`,
+          );
           expression = bindingExpr + facetExpr.access;
           break;
         }
@@ -805,7 +796,8 @@ function resolveRichEntity<E>(
     };
   }
 
-  throw new Error(
+  invariant(
+    false,
     `@here.build/lexical-namer: no shape fits for entity ${describeEntity(entity.key, options)}. ` +
       `Strategy must include at least one shape with a guaranteed-fit fallback ` +
       `(e.g., a UUID-suffixed candidate at the lowest priority).`,
