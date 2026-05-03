@@ -486,23 +486,38 @@ function resolveScope<E>(
   const fallbackSuffix = options.fallbackSuffix ?? defaultFallbackSuffix;
   const compareEntities = options.compareEntities ?? defaultCompareEntities(options.postfixFor);
 
-  // Reject rich-shape entities for v0.
+  // Validate entity shape: exactly one of `candidates` or `shapes` must be present.
   for (const entity of entities) {
-    if (entity.shapes !== undefined) {
+    const hasSimple = entity.candidates && Object.keys(entity.candidates).length > 0;
+    const hasRich = entity.shapes && entity.shapes.length > 0;
+    if (!hasSimple && !hasRich) {
       throw new Error(
-        `@here.build/lexical-namer v0: rich-shape entities (\`shapes\` field) not yet implemented. ` +
-          `Use simple form (\`candidates\` field) or wait for the rich-form release.`,
+        `@here.build/lexical-namer: entity has no candidates and no shapes: ${describeEntity(entity.key, options)}`,
       );
     }
-    if (!entity.candidates || Object.keys(entity.candidates).length === 0) {
+    if (hasSimple && hasRich) {
       throw new Error(
-        `@here.build/lexical-namer: entity has no candidates: ${describeEntity(entity.key, options)}`,
+        `@here.build/lexical-namer: entity has both candidates and shapes; pick one: ${describeEntity(entity.key, options)}`,
       );
     }
   }
 
+  // Partition entities by form. Simple entities resolve first via the v0
+  // algorithm (full priority walk with symmetric tie-break). Rich entities
+  // resolve after, greedy per-entity, against the post-simple scope state.
+  const simpleEntities: ScopedEntity<E>[] = [];
+  const richEntities: ScopedEntity<E>[] = [];
+  for (const entity of entities) {
+    if (entity.shapes && entity.shapes.length > 0) {
+      richEntities.push(entity);
+    } else {
+      simpleEntities.push(entity);
+    }
+  }
+
   // Sort entities by stable comparator (deterministic across runs).
-  const sortedEntities = [...entities].sort((a, b) => compareEntities(a.key, b.key));
+  const sortedEntities = [...simpleEntities].sort((a, b) => compareEntities(a.key, b.key));
+  const sortedRichEntities = [...richEntities].sort((a, b) => compareEntities(a.key, b.key));
 
   // Helper: is name reachable in scope (parent chain reservations or claims, or our own claims)?
   const isInScope = (name: string): boolean =>
@@ -651,7 +666,150 @@ function resolveScope<E>(
     claimsHere.add(attempt);
   }
 
+  // Phase 2: rich-shape entities. Greedy per-entity in stable order, against
+  // the post-simple scope state. For each entity, iterate shapes by priority
+  // descending; for each shape, validate externals + tentatively allocate
+  // bindings sequentially. First shape that fits wins.
+  for (const entity of sortedRichEntities) {
+    const resolution = resolveRichEntity(
+      entity,
+      effectiveReservations,
+      ancestorClaims,
+      claimsHere,
+      burnedHere,
+      options,
+    );
+    resolutions.set(entity.key, resolution);
+  }
+
   return { resolutions, claimsHere, burnedHere };
+}
+
+function resolveRichEntity<E>(
+  entity: ScopedEntity<E>,
+  effectiveReservations: ReadonlySet<string>,
+  ancestorClaims: ReadonlySet<string>,
+  claimsHere: Set<string>,
+  burnedHere: ReadonlySet<string>,
+  options: ResolveOptions<E>,
+): EntityResolution<E> {
+  if (!entity.shapes || entity.shapes.length === 0) {
+    throw new Error(
+      `@here.build/lexical-namer: rich entity has no shapes: ${describeEntity(entity.key, options)}`,
+    );
+  }
+  const sortedShapes = [...entity.shapes].sort((a, b) => b.priority - a.priority);
+
+  for (const shape of sortedShapes) {
+    // 1. Validate externals: every kind:"external" facet's viaName must be in scope.
+    let externalsOk = true;
+    for (const facetExpr of Object.values(shape.facets)) {
+      if (facetExpr.kind !== "external") continue;
+      const inScope =
+        effectiveReservations.has(facetExpr.viaName) ||
+        ancestorClaims.has(facetExpr.viaName) ||
+        claimsHere.has(facetExpr.viaName);
+      if (!inScope) {
+        externalsOk = false;
+        break;
+      }
+    }
+    if (!externalsOk) continue;
+
+    // 2. Tentatively allocate bindings sequentially. Each binding sees
+    //    earlier bindings' tentative claims as additional reservations.
+    const tentativeClaims = new Set<string>();
+    const bindingNames = new Map<E, string>();
+    let bindingFailed = false;
+
+    for (const binding of shape.bindings) {
+      const isInScope = (n: string): boolean =>
+        effectiveReservations.has(n) ||
+        ancestorClaims.has(n) ||
+        claimsHere.has(n) ||
+        burnedHere.has(n) ||
+        tentativeClaims.has(n);
+
+      const sortedKeys = Object.keys(binding.candidates)
+        .map(Number)
+        .sort((a, b) => b - a);
+      let allocated = false;
+      for (const P of sortedKeys) {
+        const candidate = binding.candidates[P];
+        if (candidate === undefined) continue;
+        if (typeof candidate === "string") {
+          if (!isInScope(candidate)) {
+            bindingNames.set(binding.subKey, candidate);
+            tentativeClaims.add(candidate);
+            allocated = true;
+            break;
+          }
+        } else {
+          // ViaPath inside a binding ladder — produces an expression rather
+          // than a fresh binding name. Doesn't claim a name; just records
+          // the path expression as the "binding name" for facet resolution.
+          if (
+            effectiveReservations.has(candidate.viaName) ||
+            ancestorClaims.has(candidate.viaName) ||
+            claimsHere.has(candidate.viaName) ||
+            tentativeClaims.has(candidate.viaName)
+          ) {
+            bindingNames.set(binding.subKey, candidate.viaName + candidate.access);
+            allocated = true;
+            break;
+          }
+        }
+      }
+      if (!allocated) {
+        bindingFailed = true;
+        break;
+      }
+    }
+
+    if (bindingFailed) continue;
+
+    // 3. Commit. Add all tentative claims to claimsHere (they're now real claims
+    //    visible to subsequent rich entities and child scopes).
+    for (const c of tentativeClaims) claimsHere.add(c);
+
+    // 4. Compute facet expressions by substituting binding names into templates.
+    const facetExpressions = new Map<string, string>();
+    for (const [facetName, facetExpr] of Object.entries(shape.facets)) {
+      let expression: string;
+      switch (facetExpr.kind) {
+        case "binding": {
+          const bindingExpr = bindingNames.get(facetExpr.ref);
+          if (bindingExpr === undefined) {
+            throw new Error(
+              `@here.build/lexical-namer: facet "${facetName}" of entity ` +
+                `${describeEntity(entity.key, options)} references unknown binding subKey.`,
+            );
+          }
+          expression = bindingExpr + facetExpr.access;
+          break;
+        }
+        case "external":
+          expression = facetExpr.viaName + facetExpr.access;
+          break;
+        case "literal":
+          expression = facetExpr.value;
+          break;
+      }
+      facetExpressions.set(facetName, expression);
+    }
+
+    return {
+      selectedShapePriority: shape.priority,
+      bindingNames,
+      facetExpressions,
+    };
+  }
+
+  throw new Error(
+    `@here.build/lexical-namer: no shape fits for entity ${describeEntity(entity.key, options)}. ` +
+      `Strategy must include at least one shape with a guaranteed-fit fallback ` +
+      `(e.g., a UUID-suffixed candidate at the lowest priority).`,
+  );
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────
