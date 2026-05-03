@@ -298,20 +298,24 @@ describe("D4: destructure shape blocked → falls to non-destructure tuple", () 
 
 // ─── Example D5 ────────────────────────────────────────────────────────
 //
-//   // Passthrough: parent passes `open` and `onOpenChange` props; component
-//   // doesn't allocate local state at all.
-//   export function Foo(props) {
-//     return (
-//       <button onClick={() => props.onOpenChange(!props.open)}>
-//         {props.open ? "Open" : "Closed"}
-//       </button>
-//     );
-//   }
+//   // Fully-controlled passthrough — applies when the consuming framework
+//   // (e.g. Radix-style components) treats this state as completely owned by
+//   // the parent. Component doesn't allocate local state at all.
+//   //
+//   //   export function Foo(props) {
+//   //     return (
+//   //       <button onClick={() => props.onOpenChange(!props.open)}>
+//   //         {props.open ? "Open" : "Closed"}
+//   //       </button>
+//   //     );
+//   //   }
 //
-// Passthrough shape at higher priority (110) — selected when external
-// `props` is in scope. No fresh bindings; facets are external paths.
+// Note: this fixture covers the FULLY-CONTROLLED case. The CONTROLLABLE-WITH-
+// DEFAULT case (`open ?? defaultOpen`, the dominant Radix-style pattern) is
+// a different shape — would have its own bindings (a useState fallback) and
+// a more complex facet expression. Modeled separately as a future fixture.
 
-describe("D5: passthrough state via props (no local allocation)", () => {
+describe("D5: fully-controlled passthrough state via props (no local allocation)", () => {
   it("selects passthrough shape; facet expressions are props-relative", () => {
     const result = resolveLexicalNames(
       {
@@ -362,26 +366,32 @@ describe("D5: passthrough state via props (no local allocation)", () => {
 
 // ─── Example D6 ────────────────────────────────────────────────────────
 //
-//   // mobx target — same logical state, completely different physical shape
-//   import { observable } from "mobx";
-//   export function Foo(props) {
-//     const stateOpen = observable.box(false);
+//   // mobx-react target — uses useLocalObservable, not observable.box.
+//   // observable.box is a 5%-case escape hatch; idiomatic mobx-react groups
+//   // related state into one observable object.
+//   import { useLocalObservable, observer } from "mobx-react-lite";
+//   export const Foo = observer((props) => {
+//     const store = useLocalObservable(() => ({
+//       open: false,
+//       toggle() { this.open = !this.open },
+//     }));
 //     return (
-//       <button onClick={() => stateOpen.set(!stateOpen.get())}>
-//         {stateOpen.get() ? "Open" : "Closed"}
+//       <button onClick={store.toggle}>
+//         {store.open ? "Open" : "Closed"}
 //       </button>
 //     );
-//   }
+//   });
 //
-// mobx-target strategy emits ONLY the box shape (no destructure / non-
-// destructure variants — those don't apply for mobx).
+// One fresh binding (`store`); facets reach in via member access. The
+// `setter` facet is a method on the store, not a separate binding —
+// reflects mobx's "method on observable" idiom, not React's setter pattern.
 
-describe("D6: mobx box realization (target-specific shape)", () => {
-  it("box shape selected; facet expressions use .get() and .set", () => {
+describe("D6: mobx useLocalObservable realization (member-access facets)", () => {
+  it("store binding selected; read=.open, action=.toggle", () => {
     const result = resolveLexicalNames(
       {
         id: "module",
-        reservations: ["React", "observable", "Foo"],
+        reservations: ["React", "useLocalObservable", "observer", "Foo"],
         children: [
           {
             id: "component:Foo",
@@ -393,11 +403,11 @@ describe("D6: mobx box realization (target-specific shape)", () => {
                   {
                     priority: 100,
                     bindings: [
-                      { subKey: "state:open:box", candidates: { 100: "stateOpen", 80: "boxOpen" } },
+                      { subKey: "state:open:store", candidates: { 100: "store", 80: "openStore" } },
                     ],
                     facets: {
-                      read: { kind: "binding", ref: "state:open:box", access: ".get()" },
-                      setter: { kind: "binding", ref: "state:open:box", access: ".set" },
+                      read: { kind: "binding", ref: "state:open:store", access: ".open" },
+                      setter: { kind: "binding", ref: "state:open:store", access: ".toggle" },
                     },
                   },
                 ],
@@ -410,8 +420,8 @@ describe("D6: mobx box realization (target-specific shape)", () => {
     );
     const r = result.resolutions.get("state:open");
     expect(r?.selectedShapePriority).toBe(100);
-    expect(r?.facetExpressions.get("read")).toBe("stateOpen.get()");
-    expect(r?.facetExpressions.get("setter")).toBe("stateOpen.set");
+    expect(r?.facetExpressions.get("read")).toBe("store.open");
+    expect(r?.facetExpressions.get("setter")).toBe("store.toggle");
   });
 });
 
@@ -554,7 +564,8 @@ describe("D8: mutation (single binding, member-access facets)", () => {
 //     const createUser = useMutation({ mutationFn: createUserApi });
 //     const [name, setName] = useState("");
 //     const [error, setError] = useState(null);
-//     const handleSubmit = useCallback(() => {
+//     const handleSubmit = useCallback((e) => {
+//       e.preventDefault();
 //       if (!name) {
 //         setError("Name required");
 //         return;
@@ -704,18 +715,26 @@ describe("D9: full-feature component — idiomatic React shape end-to-end", () =
 
 // ─── Example D11 ───────────────────────────────────────────────────────
 //
-//   // Custom hook that returns a tuple — bridge between user code and our
-//   // model. The user wrote `const [count, increment] = useCounter()`; the
-//   // strategy treats `useCounter` as an entity producing two bindings.
+//   // Custom hook that returns an object — modern (2025) idiom. Object-
+//   // returning hooks beat tuple-returning ones because they're extensible
+//   // (add fields without breaking call sites) and self-documenting.
 //   //
 //   import { useCounter } from "./hooks";
 //   export function Foo(props) {
-//     const [count, increment] = useCounter();
-//     return <button onClick={increment}>{count}</button>;
+//     const { count, increment, reset } = useCounter();
+//     return (
+//       <div>
+//         <button onClick={increment}>{count}</button>
+//         <button onClick={reset}>Reset</button>
+//       </div>
+//     );
 //   }
+//
+// Three facets (value/action/reset), each its own destructured binding.
+// Same shape as D7's query destructure — object-rename pattern, not tuple.
 
-describe("D11: custom hook with tuple destructure (mirrors useState shape)", () => {
-  it("custom-hook destructure works the same as useState destructure", () => {
+describe("D11: custom hook with OBJECT destructure (modern idiom)", () => {
+  it("object-destructure shape allocates one binding per facet", () => {
     const result = resolveLexicalNames(
       {
         id: "module",
@@ -734,13 +753,18 @@ describe("D11: custom hook with tuple destructure (mirrors useState shape)", () 
                     bindings: [
                       { subKey: "hook:counter:value", candidates: { 100: "count", 80: "counterValue" } },
                       {
-                        subKey: "hook:counter:action",
+                        subKey: "hook:counter:increment",
                         candidates: { 100: "increment", 80: "counterIncrement" },
+                      },
+                      {
+                        subKey: "hook:counter:reset",
+                        candidates: { 100: "reset", 80: "counterReset" },
                       },
                     ],
                     facets: {
                       value: { kind: "binding", ref: "hook:counter:value", access: "" },
-                      action: { kind: "binding", ref: "hook:counter:action", access: "" },
+                      increment: { kind: "binding", ref: "hook:counter:increment", access: "" },
+                      reset: { kind: "binding", ref: "hook:counter:reset", access: "" },
                     },
                   },
                 ],
@@ -753,6 +777,7 @@ describe("D11: custom hook with tuple destructure (mirrors useState shape)", () 
     );
     const r = result.resolutions.get("hook:counter");
     expect(r?.facetExpressions.get("value")).toBe("count");
-    expect(r?.facetExpressions.get("action")).toBe("increment");
+    expect(r?.facetExpressions.get("increment")).toBe("increment");
+    expect(r?.facetExpressions.get("reset")).toBe("reset");
   });
 });

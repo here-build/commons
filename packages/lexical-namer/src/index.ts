@@ -34,12 +34,29 @@ export interface ScopeSpec<E> {
   readonly id?: string;
 
   /**
-   * Names that cannot be claimed at this scope or any descendant. Use for
-   * pre-known external names: framework imports, language keywords,
-   * user-referenced globals scanned out of embedded user code, sigil-private
-   * prefixes, etc.
+   * Names that cannot be claimed at this scope or any descendant. Propagates
+   * DOWN to children. Use for pre-known external names: framework imports,
+   * language keywords, user-referenced free vars from embedded user code,
+   * sigil-private prefixes.
    */
   readonly reservations?: readonly string[];
+
+  /**
+   * Names DECLARED by user code at this scope. Distinct from `reservations`
+   * because user-declarations propagate UPWARD: any ancestor of this scope
+   * also treats these names as blocked. This prevents our codegen at outer
+   * scopes from allocating a name that user code declares below — which
+   * would be a slot-injection hazard if any of our refs flow into the user-
+   * declared scope and get shadowed.
+   *
+   * Strategy populates this by AST-scanning user CustomCode for declarations
+   * (const, let, var, function params, class methods, etc.) at the scope
+   * where the user code lands.
+   *
+   * Free *references* (vars used but not declared) belong in `reservations`
+   * at the scope where the user code lands — they don't propagate upward.
+   */
+  readonly userDeclarations?: readonly string[];
 
   /**
    * Entities competing for names at this scope level.
@@ -178,14 +195,16 @@ export interface ShapeBinding<E> {
   readonly candidates: Readonly<Record<number, Candidate>>;
   /**
    * Reference count of this binding's emitted name in the resulting code.
-   * Used as the cost weight when this binding might lose to another in
-   * a cross-scope conflict. Strategy computes from IR walk before resolution.
    *
-   * The cost model is `usageCount × tierDrop` (priority distance from
-   * preferred candidate). Higher reference counts make degradation more
-   * expensive — the resolver prefers to degrade entities with lower usage.
+   * **Currently for forward-compat — not exercised by any v0 fixture or
+   * algorithm path.** When cost-weighted cross-scope resolution lands
+   * (future work), this becomes the weight: `cost = usageCount × tierGap`.
    *
-   * Default: 1 (treat all bindings equally if not provided).
+   * Strategy computes from IR walk before resolution (count of bare-name
+   * references in JSX, handler bodies, deps lists, member-access chains).
+   *
+   * Default treatment: 1 (equal weight). Provided values are ignored by the
+   * v0 simple-greedy algorithm but accepted for schema stability.
    */
   readonly usageCount?: number;
 }
@@ -252,28 +271,6 @@ export interface ResolveOptions<E> {
    * inspection of common shapes (`uuid`, `id`, `name` properties).
    */
   describeEntity?: (entity: E) => string;
-
-  /**
-   * Algorithm for cross-scope conflict resolution.
-   *
-   * - **"greedy"** (default): cost-weighted Chow-Hennessy priority coloring
-   *   with Briggs-style optimistic refinement and George-Appel sibling
-   *   coalescing. Polynomial, ~95% optimal in practice, ~100 LOC.
-   *   Sufficient for nearly all real cases at our scale.
-   *
-   * - **"optimal"**: Hungarian / Kuhn-Munkres weighted bipartite matching
-   *   over the full entity set, with cost-matrix encoding of hierarchical
-   *   shadow constraints. O(n³); provably optimal. Use when greedy
-   *   produces measurably bad output.
-   *
-   * - **"exhaustive"**: branch-and-bound or SMT-backed exhaustive search.
-   *   Tractable at our scale; reach for it only when correctness >
-   *   performance and the problem is small enough.
-   *
-   * The cost function is `usageCount × tierDrop` summed across all entities.
-   * The resolver minimizes this sum.
-   */
-  algorithm?: "greedy" | "optimal" | "exhaustive";
 }
 
 export interface ResolveResult<E> {
