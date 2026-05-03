@@ -56,29 +56,47 @@ export interface ScopeSpec<E> {
 }
 
 /**
- * One entity competing for a name. The `key` is the consumer's handle —
- * it identifies this entity in the result map. Must be unique across the
- * entire tree (the resolver does NOT check; collisions silently overwrite).
+ * One entity competing for naming. Two forms:
+ *
+ * - **Simple**: one binding, one default facet. Use `candidates`.
+ *   Result expression = the resolved binding name.
+ *
+ * - **Rich**: multiple realizations (shapes), each with its own bindings
+ *   and per-facet access expressions. Use `shapes`. Each shape is a
+ *   complete way to realize this entity in code; the resolver picks the
+ *   highest-priority shape whose bindings all fit the scope.
+ *
+ * Exactly one of `candidates` or `shapes` must be present.
  */
 export interface ScopedEntity<E> {
   readonly key: E;
 
   /**
-   * Priority-keyed name preferences. Higher key = higher priority.
+   * Simple form. Priority-keyed name preferences. Higher key = higher priority.
    *
-   * Each value is a {@link Candidate}: either a string (request a fresh
-   * binding under that name) or a {@link ViaPath} (produce an access
-   * expression through an in-scope name without allocating).
+   * Each value is a {@link Candidate}: either a string (fresh binding under
+   * that name) or a {@link ViaPath} (access expression through an in-scope
+   * name without allocating).
    *
-   * The resolver iterates priorities descending. On block (fresh-binding
-   * collides, or via-path's `viaName` not in scope), walks to next priority.
-   *
-   * Shape choice: `Record<priority, candidate>` encodes "at each priority
-   * level, exactly one candidate" structurally. Strategy can't accidentally
-   * express "at this priority, try X then Y" (ambiguous). For multi-step
-   * fallback, use distinct priority values.
+   * Use for genuinely single-name entities (handlers, refs, imports, fetchers).
+   * For state/query/mutation/anything that has read+setter or destructure
+   * tradeoffs, use `shapes`.
    */
-  readonly candidates: Readonly<Record<number, Candidate>>;
+  readonly candidates?: Readonly<Record<number, Candidate>>;
+
+  /**
+   * Rich form. Each shape is a full realization of the entity, with its own
+   * fresh bindings and per-facet access expressions. The resolver picks the
+   * highest-priority shape whose bindings all allocate without collision and
+   * whose external `viaName`s are in scope.
+   *
+   * Use when the entity has multiple physical realizations:
+   *   - destructure (`[open, setOpen] = useState(...)`) vs non-destructure tuple
+   *   - mobx box (`.get()` / `.set`) vs React tuple
+   *   - passthrough (`props.open` / `props.onOpenChange`) vs local allocation
+   *   - query result destructure vs single-binding member access
+   */
+  readonly shapes?: readonly Shape<E>[];
 }
 
 /**
@@ -117,6 +135,62 @@ export interface ViaPath {
   readonly viaName: string;
   readonly access: string;
 }
+
+// ── Rich shape ───────────────────────────────────────────────────────
+
+/**
+ * One realization of a rich entity. The resolver evaluates shapes in
+ * priority-descending order; picks the first whose `bindings` all allocate
+ * and whose external `viaName`s in `facets` are in scope.
+ *
+ * All-or-nothing: a shape is selected as a whole or rejected entirely. The
+ * resolver does not "half-select" — for example, it doesn't claim one of
+ * a destructure shape's two bindings and skip the other.
+ */
+export interface Shape<E> {
+  /** Higher = preferred. Same scale as candidate priorities. */
+  readonly priority: number;
+
+  /**
+   * Fresh bindings allocated when this shape is selected. Each binding has
+   * its own candidate ladder. Empty for path-only shapes (passthrough,
+   * external-only globals) — those allocate nothing.
+   */
+  readonly bindings: readonly ShapeBinding<E>[];
+
+  /**
+   * Access expressions for each named facet of this entity. Facets are
+   * domain-defined string keys: e.g., a state has "read" + "setter"; a query
+   * has "data" + "status" + "error"; a single-name entity has just "default".
+   */
+  readonly facets: Readonly<Record<string, FacetExpr<E>>>;
+}
+
+/**
+ * A fresh binding declared by a shape. Allocated like a simple-form entity
+ * but scoped to the parent shape's selection — if the shape isn't selected,
+ * the binding doesn't exist.
+ */
+export interface ShapeBinding<E> {
+  /** Sub-entity identity. Must be unique across the resolution. */
+  readonly subKey: E;
+  /** Name candidates (same Record<priority, Candidate> form as simple entities). */
+  readonly candidates: Readonly<Record<number, Candidate>>;
+}
+
+/**
+ * How a facet's access expression is constructed.
+ *
+ * - **binding**: path through one of THIS shape's own bindings. The resolver
+ *   substitutes the binding's resolved name; expression = `${name}${access}`.
+ * - **external**: path through an in-scope name (reservation or claim from
+ *   this scope or any ancestor). Expression = `${viaName}${access}`.
+ * - **literal**: a constant expression with no scope dependency.
+ */
+export type FacetExpr<E> =
+  | { readonly kind: "binding"; readonly ref: E; readonly access: string }
+  | { readonly kind: "external"; readonly viaName: string; readonly access: string }
+  | { readonly kind: "literal"; readonly value: string };
 
 export interface ResolveOptions<E> {
   /**
@@ -170,15 +244,27 @@ export interface ResolveOptions<E> {
 
 export interface ResolveResult<E> {
   /**
-   * Every entity in the tree → its final assigned name. Guaranteed:
-   * within any scope, no two entities share the same name; across the tree,
-   * entities in disjoint sibling scopes MAY share the same name.
+   * Convenience: entity → its primary name/expression.
+   *
+   * - Simple entities: the binding's resolved name.
+   * - Rich entities with one facet: that facet's expression.
+   * - Rich entities with multiple facets: ABSENT (use `resolutions`).
+   *
+   * Multi-facet entities don't have a single name — consumers MUST use
+   * `resolutions` to access per-facet expressions.
    */
   assignments: ReadonlyMap<E, string>;
 
   /**
-   * Per-scope view of names claimed by entities at that scope. Keyed by
-   * `ScopeSpec.id`; scopes without an id are absent from this map.
+   * Full per-entity resolution: which shape was selected, the resolved name
+   * for each binding the shape claimed, the resolved expression for each
+   * facet. Always present for every entity in the input.
+   */
+  resolutions: ReadonlyMap<E, EntityResolution<E>>;
+
+  /**
+   * Per-scope view of names claimed at that scope. Keyed by `ScopeSpec.id`;
+   * scopes without an id are absent.
    */
   claimsByScope: ReadonlyMap<string, ReadonlySet<string>>;
 
@@ -187,6 +273,28 @@ export interface ResolveResult<E> {
    * populated when `onTie === "burn"`). Keyed by `ScopeSpec.id`.
    */
   burnedByScope: ReadonlyMap<string, ReadonlySet<string>>;
+}
+
+export interface EntityResolution<E> {
+  /**
+   * Priority of the shape that was selected. For simple entities, always
+   * the implicit single-shape priority (100 by convention).
+   */
+  readonly selectedShapePriority: number;
+
+  /**
+   * Names allocated for the selected shape's bindings. Map<subKey, name>.
+   * For simple entities: one entry, keyed by the entity's own key.
+   * For rich entities: one entry per binding in the selected shape.
+   */
+  readonly bindingNames: ReadonlyMap<E, string>;
+
+  /**
+   * Resolved access expression per facet. For simple entities: one entry
+   * keyed `"default"` whose value is the binding's name. For rich entities:
+   * one entry per facet declared in the selected shape.
+   */
+  readonly facetExpressions: ReadonlyMap<string, string>;
 }
 
 /**
