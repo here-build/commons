@@ -42,7 +42,7 @@
  *   - feed(rawMessage)                    — server-wrap mode only
  */
 
-import { handleChunked, sendChunked } from "./protocol.js";
+import { handleChunked, RESET_SENTINEL, sendChunked, type ChunkedReceiveHandler } from "./protocol.js";
 
 type MessageEventLike = { data: ArrayBuffer | string };
 
@@ -104,7 +104,7 @@ export class ChunkedWebSocket extends EventTarget {
   onerror: ((this: ChunkedWebSocket, ev: Event) => unknown) | null = null;
   onmessage: ((this: ChunkedWebSocket, ev: MessageEventLike) => unknown) | null = null;
 
-  private readonly chunkHandler: (e: MessageEventLike) => void;
+  private readonly chunkHandler: ChunkedReceiveHandler;
 
   constructor(urlOrWebSocket: string | RawWebSocketLike, protocols?: string | string[]) {
     super();
@@ -161,6 +161,36 @@ export class ChunkedWebSocket extends EventTarget {
    */
   feed(rawMessage: ArrayBuffer | string): void {
     this.chunkHandler({ data: rawMessage });
+  }
+
+  /**
+   * Drop any in-flight batch state and enter DRAIN mode — subsequent
+   * binary frames are silently discarded until the next `start` marker
+   * arrives. Use when the wrapper's view of the conversation has gone
+   * stale (e.g. server post-hibernation: it has no idea whether the
+   * peer is mid-upload, so it discards anything not bracketed by fresh
+   * markers).
+   *
+   * Does not notify the peer. Pair with `dispatchReset()` if the peer
+   * should also drop its state.
+   */
+  beginDrain(): void {
+    this.chunkHandler.reset();
+  }
+
+  /**
+   * Send a reset marker to the peer. The peer's chunked-receive handler
+   * will drop any in-flight batch state and enter DRAIN itself. Used by
+   * the server when it observes a WebSocket it has no in-memory state
+   * for (fresh accept OR post-hibernation wake) to invalidate whatever
+   * batch the client may have been mid-receiving.
+   *
+   * Idempotent and cheap (one ~10-byte text frame). Does not change
+   * the local handler's state — call `beginDrain()` separately if you
+   * also need to drop local state.
+   */
+  dispatchReset(): void {
+    this.inner.send(RESET_SENTINEL);
   }
 
   get readyState(): number {

@@ -36,6 +36,20 @@ export const CHUNK_MAX_SIZE = 1_000_000;
 
 const BATCH_SENTINEL = "y-pk-batch";
 
+/**
+ * Reset marker — text frame the server dispatches when it observes a
+ * WebSocket it has no in-memory state for (fresh accept OR post-
+ * hibernation wake). Tells the receiver to discard any in-flight batch
+ * state and enter DRAIN mode: silently drop binary frames until the
+ * next start marker arrives.
+ *
+ * Asymmetric in practice: server → client. Browser-side state is tied
+ * to the WebSocket lifecycle (close = wrapper GC'd) so clients don't
+ * need to notify the server. Mechanism is symmetric though — either
+ * side could send it.
+ */
+export const RESET_SENTINEL = "y-pk-reset";
+
 interface BatchMarker {
   id: string;
   type: "start" | "end";
@@ -108,35 +122,73 @@ export function sendChunked(data: ArrayBufferLike, ws: SendCapableSocket): void 
 }
 
 /**
+ * Handler returned by `handleChunked` — callable for each inbound frame,
+ * with a `reset()` method that drops in-flight batch state and enters
+ * DRAIN mode (silently discards binary frames until the next start
+ * marker arrives).
+ */
+export type ChunkedReceiveHandler = ((event: ChunkedMessageEvent) => void) & {
+  reset(): void;
+};
+
+/**
  * Wraps a receive callback to handle chunked messages.
  *
- * Returns a handler that accepts `{ data }`-shaped events (matching the
- * native `MessageEvent` shape) and forwards either the reassembled buffer
- * or, for unchunked messages, the original payload untouched.
+ * Returns a stateful handler — keep one per WebSocket. Internal FSM has
+ * three states:
  *
- * Stateful — keep one handler per WebSocket; chunks from concurrent
- * messages on the same socket are interleaved by start/end markers, but
- * a single handler only buffers one in-progress batch at a time.
+ *   - **IDLE**: incoming binary frames are passed through directly as
+ *     complete unchunked application messages. A `start` text marker
+ *     transitions to BATCH; a `reset` text marker transitions to DRAIN.
+ *   - **BATCH**: accumulating chunks from a multi-frame message. An
+ *     `end` text marker validates and emits the reassembled buffer,
+ *     then transitions back to IDLE. A `reset` clears the partial
+ *     batch and transitions to DRAIN.
+ *   - **DRAIN**: discards binary frames silently. Used to drop chunks
+ *     in flight from a peer that lost its in-memory state mid-batch.
+ *     A `start` marker transitions to BATCH (clean recovery); an
+ *     orphan `end` marker transitions to IDLE.
+ *
+ * The DRAIN state is the protocol's recovery mechanism for hibernation
+ * / eviction races — see `RESET_SENTINEL` and `ChunkedDOTransport.wrap`.
  */
-export function handleChunked(
-  receive: (data: ChunkedMessageData) => void,
-): (event: ChunkedMessageEvent) => void {
+export function handleChunked(receive: (data: ChunkedMessageData) => void): ChunkedReceiveHandler {
   let batch: ArrayBuffer[] | undefined;
   let start: BatchMarker | undefined;
+  let draining = false;
 
-  return (message) => {
+  const reset = () => {
+    batch = undefined;
+    start = undefined;
+    draining = true;
+  };
+
+  const handler = ((message: ChunkedMessageEvent) => {
     const { data } = message;
 
-    if (isBatchSentinel(data)) {
+    if (typeof data === "string") {
+      if (data === RESET_SENTINEL) {
+        reset();
+        return;
+      }
+      if (!isBatchSentinel(data)) return; // unrecognized text — ignore.
+
       const marker = parseBatchMarker(data);
       if (marker.type === "start") {
         batch = [];
         start = marker;
+        draining = false; // fresh start always exits DRAIN.
         return;
       }
 
       // marker.type === "end"
-      if (!batch || !start) return;
+      if (draining) {
+        // End of an in-flight batch we discarded. Done draining.
+        draining = false;
+        return;
+      }
+      if (!batch || !start) return; // orphan end — ignore.
+
       try {
         assertEquality(start.id, marker.id, "batch id");
         assertEquality(start.count, marker.count, "batch counts");
@@ -161,15 +213,18 @@ export function handleChunked(
       return;
     }
 
+    // Binary frame.
+    if (draining) return; // discard — the batch this belongs to is stale.
     if (batch) {
-      // Mid-batch binary frame — accumulate.
       batch.push(toArrayBuffer(data));
       return;
     }
-
     // Passthrough — unchunked message.
     receive(data);
-  };
+  }) as ChunkedReceiveHandler;
+
+  handler.reset = reset;
+  return handler;
 }
 
 function toArrayBuffer(data: ChunkedMessageData): ArrayBuffer {

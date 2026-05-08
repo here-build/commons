@@ -83,6 +83,20 @@ export class ChunkedDOTransport {
         this.onAppMessage(ws, data);
       });
       this.wrappers.set(ws, wrapper);
+
+      // We're newly aware of this socket. Could be a fresh accept (peer
+      // has no in-flight state — reset is a no-op, harmless) OR a
+      // post-hibernation wake where the DO's in-memory `wrappers` Map
+      // got wiped while the peer might still be mid-batch.
+      //
+      // Defensive: enter local DRAIN so any orphan binary frames
+      // already in-flight from the peer get discarded instead of
+      // corrupting the application protocol; and dispatch a reset
+      // marker so the peer drops its own in-flight batch state. Both
+      // sides converge on IDLE and the next protocol-level resync
+      // (yjs syncStep1) starts fresh.
+      wrapper.beginDrain();
+      wrapper.dispatchReset();
     }
     return wrapper;
   }
