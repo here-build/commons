@@ -36,7 +36,13 @@
   },
   "devDependencies": {
     "@here.build/tsconfig": "workspace:^",
+    "@types/ws": "8.5.13",
+    "lib0": "0.2.114",
     "typescript": "6.0.2",
-    "vitest": "4.1.0"
+    "vitest": "4.1.0",
+    "ws": "8.18.3",
+    "y-protocols": "1.0.6",
+    "y-websocket": "3.0.0",
+    "yjs": "13.6.30"
   }
 }

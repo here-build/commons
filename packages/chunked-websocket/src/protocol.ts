@@ -158,9 +158,14 @@ export function handleChunked(receive: (data: ChunkedMessageData) => void): Chun
   let draining = false;
 
   const reset = () => {
+    // Only enter DRAIN if there's an in-flight batch we need to ride
+    // out — orphan binary chunks would arrive until the peer's `end`
+    // marker. With no batch in progress, RESET is a no-op: the next
+    // binary frame is a fresh complete message, not a stray chunk.
+    const hadBatch = batch !== undefined;
     batch = undefined;
     start = undefined;
-    draining = true;
+    if (hadBatch) draining = true;
   };
 
   const handler = ((message: ChunkedMessageEvent) => {

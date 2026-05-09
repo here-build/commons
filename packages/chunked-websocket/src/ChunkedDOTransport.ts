@@ -89,13 +89,15 @@ export class ChunkedDOTransport {
       // post-hibernation wake where the DO's in-memory `wrappers` Map
       // got wiped while the peer might still be mid-batch.
       //
-      // Defensive: enter local DRAIN so any orphan binary frames
-      // already in-flight from the peer get discarded instead of
-      // corrupting the application protocol; and dispatch a reset
-      // marker so the peer drops its own in-flight batch state. Both
-      // sides converge on IDLE and the next protocol-level resync
-      // (yjs syncStep1) starts fresh.
-      wrapper.beginDrain();
+      // Dispatch a reset marker so the peer drops its own in-flight
+      // batch state. We deliberately do NOT enter local DRAIN: in the
+      // fresh-accept case the peer's first message is a complete
+      // unchunked frame (e.g. yjs syncStep1) and DRAIN would silently
+      // drop it. In the rare hibernation-mid-batch case orphan binary
+      // chunks would arrive at IDLE and be passed to the app layer,
+      // which will reject them as malformed (transient noise, not
+      // corruption — the resync that follows the peer's reset settles
+      // the conversation).
       wrapper.dispatchReset();
     }
     return wrapper;

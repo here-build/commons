@@ -139,7 +139,14 @@ export class ChunkedWebSocket extends EventTarget {
       };
       native.onclose = (ev) => {
         this.onclose?.call(this, ev);
-        this.dispatchEvent(new CloseEvent("close", ev));
+        // `CloseEvent` is DOM-only; not exposed as a global in
+        // Node. In a Node test runner with the `node` environment,
+        // referencing it throws. Plain `Event("close")` is enough
+        // for `addEventListener("close", …)` consumers; the bare
+        // CloseEvent fields (code/reason/wasClean) are still on the
+        // `ev` object delivered to `onclose`.
+        const Ctor = (globalThis as { CloseEvent?: typeof CloseEvent }).CloseEvent;
+        this.dispatchEvent(Ctor ? new Ctor("close", ev) : new Event("close"));
       };
       native.onerror = (ev) => {
         this.onerror?.call(this, ev);
