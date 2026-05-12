@@ -200,12 +200,6 @@ const baseConfig = [
     },
   },
   {
-    files: ["plasmic/**/*"],
-    rules: {
-      "unicorn/filename-case": "off",
-    },
-  },
-  {
     // update this to match your test files
     files: [
       "**/*.spec.ts",
