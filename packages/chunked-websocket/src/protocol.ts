@@ -28,6 +28,8 @@
  * supported by this transport — pass them through some other channel.
  */
 
+import invariant from "tiny-invariant";
+
 // Workerd's per-WebSocket-frame size limit is ~1 MiB. PartyKit uses
 // 1_000_000 bytes; we match for protocol compatibility. Picking lower
 // reduces per-large-message overhead trivially; picking higher will
@@ -250,9 +252,10 @@ function toArrayBuffer(data: ChunkedMessageData): ArrayBuffer {
 }
 
 function assertEquality(expected: unknown, actual: unknown, label: string): void {
-  if (expected !== actual) {
-    throw new Error(`chunked-websocket: mismatching ${label} — expected ${String(expected)}, got ${String(actual)}`);
-  }
+  invariant(
+    expected === actual,
+    `chunked-websocket: mismatching ${label} — expected ${String(expected)}, got ${String(actual)}`,
+  );
 }
 
 function isBatchSentinel(msg: ChunkedMessageData): msg is string {
@@ -265,12 +268,8 @@ function serializeBatchMarker(batch: BatchMarker): string {
 
 export function parseBatchMarker(msg: string): BatchMarker {
   const hashIdx = msg.indexOf("#");
-  if (hashIdx < 0 || msg.slice(0, hashIdx) !== BATCH_SENTINEL) {
-    throw new Error(`chunked-websocket: unexpected batch marker — ${msg}`);
-  }
+  invariant(hashIdx >= 0 && msg.slice(0, hashIdx) === BATCH_SENTINEL, `chunked-websocket: unexpected batch marker — ${msg}`);
   const batch = JSON.parse(msg.slice(hashIdx + 1)) as BatchMarker;
-  if (batch.type !== "start" && batch.type !== "end") {
-    throw new Error(`chunked-websocket: unexpected batch type — ${msg}`);
-  }
+  invariant(batch.type === "start" || batch.type === "end", `chunked-websocket: unexpected batch type — ${msg}`);
   return batch;
 }

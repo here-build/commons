@@ -34,6 +34,9 @@
     "test": "vitest run --passWithNoTests",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
+  "dependencies": {
+    "tiny-invariant": "1.3.3"
+  },
   "devDependencies": {
     "@here.build/tsconfig": "workspace:^",
     "@types/ws": "8.5.13",
