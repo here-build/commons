@@ -39,7 +39,7 @@
   },
   "devDependencies": {
     "@here.build/tsconfig": "workspace:^",
-    "@types/ws": "8.5.13",
+    "@types/ws": "8.18.1",
     "lib0": "0.2.114",
     "typescript": "6.0.2",
     "vitest": "4.1.0",
