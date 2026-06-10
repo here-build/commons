@@ -16,7 +16,9 @@
 import type { Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 
-const MONO = "var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)";
+import { FONT_READING_TYPES, FONT_READING_VALUES, FONT_WRITING } from "./stacks.js";
+
+const MONO = `var(--font-mono, ${FONT_WRITING})`;
 const HEADING = "var(--font-heading, system-ui, sans-serif)";
 
 const squircle = typeof CSS !== "undefined" && CSS.supports("corner-shape", "superellipse(4)");
@@ -36,9 +38,14 @@ const corners: Record<string, string> = squircle
 
 export const overlayTheme: Extension = EditorView.theme({
   // ── completion popup ───────────────────────────────────────────────────
+  // Popup rows are READING surfaces (rendered, never edited), so they get
+  // Monaspace and its texture healing: Argon (humanist) for the candidate
+  // VALUES, Krypton (mechanical) for the TYPE signatures in the detail. The
+  // editor itself stays on the writing font — healing jiggles under a caret.
   ".cm-tooltip.cm-tooltip-autocomplete": { ...container, ...corners },
   ".cm-tooltip.cm-tooltip-autocomplete > ul": {
-    fontFamily: MONO,
+    fontFamily: FONT_READING_VALUES,
+    fontFeatureSettings: '"calt" 1', // texture healing rides calt
   },
   ".cm-tooltip-autocomplete ul li[aria-selected]": {
     background: "oklch(1 0 0 / 0.1)",
@@ -49,15 +56,16 @@ export const overlayTheme: Extension = EditorView.theme({
     justifyContent: "space-between",
     width: "100%",
     boxSizing: "border-box",
-    fontFamily: MONO,
+    fontFamily: FONT_READING_VALUES,
   },
   ".cm-completionIcon": {
     display: "none",
   },
   ".cm-completionDetail": {
     marginLeft: "0",
+    fontFamily: FONT_READING_TYPES,
     fontStyle: "normal",
-    fontWeight: "100",
+    fontWeight: "200", // Krypton VF floor (100 falls off the wght axis)
     color: "var(--color-text-tertiary, oklch(0.55 0 0 / 1))",
   },
   ".cm-tooltip.cm-tooltip-autocomplete > ul > completion-section": {
