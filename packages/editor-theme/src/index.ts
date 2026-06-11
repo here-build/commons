@@ -24,5 +24,15 @@ export const editorFont: Extension = EditorView.theme({
   ".cm-scroller": { fontFamily: FONT_WRITING },
 });
 
+/** The shared editor CHROME — fill-height, 12px, tidy content padding, scroll.
+ *  Font is deliberately NOT here (compose with `editorFont`, or let a host like
+ *  FileEditor set its own face), so one block serves both the raw-CodeMirror
+ *  viewers and the IDE editor without fighting over the typeface. */
+export const editorChrome: Extension = EditorView.theme({
+  "&": { fontSize: "12px", height: "100%", minHeight: "100%" },
+  ".cm-content": { padding: "10px 0" },
+  ".cm-scroller": { overflow: "auto" },
+});
+
 export { darcula } from "./theme-darcula.js";
 export { overlayTheme } from "./overlay-theme.js";
