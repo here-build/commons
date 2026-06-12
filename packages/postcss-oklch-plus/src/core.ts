@@ -11,9 +11,10 @@
  *
  *  2. HELMHOLTZ–KOHLRAUSCH — `hkCompensation` over a `HueModel`. Saturated colors look brighter than
  *     their measured OKLCH L; this derives how much L to *subtract* so a colored element sits level
- *     with a neutral gray at the same L. The default `nayatani` model is a 3-harmonic Fourier fit
- *     (R²=0.98) of the real Nayatani-1997 VAC predictor, re-expressed in OKLCH hue. (A legacy
- *     `delta` model exists for output parity but is perceptually miscalibrated — see `HueModel`.)
+ *     with a neutral gray at the same L. The default `nayatani` model fits the *shape* of
+ *     Nayatani-1997's VAC hue term q(θ) (R²=0.98), at fixed chroma, re-expressed in OKLCH hue and
+ *     rescaled to Delta's compensation budget — shape is Nayatani's, magnitude is Delta's (S_uv/K_Br
+ *     dropped). (A legacy `delta` model exists for output parity but is miscalibrated — see `HueModel`.)
  *
  * THE LOAD-BEARING FACT: every transcendental (`cos`, `exp`) lives inside `deltaHueFactor`, which
  * is a pure function of HUE alone. That is why a static hue lets the whole H-K term fold to a
@@ -60,8 +61,9 @@ export function clampChromaBellCss(LExpr: string, CExpr: string, cap = DEFAULT_C
  * A hue model maps OKLCH hue → the H-K brightness-excess weight, as a pure function of hue. That
  * purity is what lets a static hue bake to a constant (zero runtime trig). Two models:
  *
- *   nayatani — a 3-harmonic Fourier fit (R²=0.98) of the real Nayatani-1997 VAC predictor,
- *              re-expressed in OKLCH hue. THE DEFAULT — perceptually correct.
+ *   nayatani — a 3-harmonic Fourier fit (R²=0.98) of the *shape* of Nayatani-1997's VAC hue term
+ *              q(θ), at fixed chroma, re-expressed in OKLCH hue, rescaled to Delta's budget. THE
+ *              DEFAULT — perceptually correct in hue allocation (shape Nayatani's, magnitude Delta's).
  *   delta    — the legacy here.build curve (warm cosine lobe + Gaussian blue bump). Kept ONLY for
  *              byte-parity with current studio output; it is perceptually MISCALIBRATED — it
  *              inverts the yellow and magenta peaks (anti-correlated with Nayatani, r≈−0.04).

@@ -29,10 +29,11 @@ describe.each([
   const mine = ottossonGamut(ours);
   const oracle = culoriGamut(theirs);
 
-  it("maxChroma agrees across a hue × L grid (±0.003)", () => {
+  it("maxChroma agrees across a hue × L grid incl. low-L (±0.003)", () => {
     let worst = 0;
-    for (let hue = 0; hue < 360; hue += 15) {
-      for (let L = 0.1; L <= 0.9; L += 0.1) {
+    for (let hue = 0; hue < 360; hue += 10) {
+      // start at L=0.02 — the low-L wide-gamut region is where the sRGB margin is thinnest
+      for (let L = 0.02; L <= 0.98; L += 0.04) {
         const diff = Math.abs(mine.maxChroma(L, hue) - oracle.maxChroma(L, hue));
         worst = Math.max(worst, diff);
       }

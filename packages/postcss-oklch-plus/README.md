@@ -1,16 +1,16 @@
 # @here.build/postcss-oklch-plus
 
-**`oklch`, but better.** Two PostCSS color functions that lower to plain spec CSS and do the
+**`oklch`, but better.** Three PostCSS color functions that lower to plain spec CSS and do the
 perceptual math at *build time* — so the browser never runs trig in the frame loop.
 
 ```css
 /* you write */
 .btn        { background: oklch-safe(0.7 0.5 30); }
-.btn-accent { background: oklchhk(0.62 0.18 255); }
+.btn-accent { background: oklch-safe-hk(0.62 0.18 255); }
 
 /* you ship */
-.btn        { background: oklch(0.7 0.35 30); }
-.btn-accent { background: oklch(0.5876 0.18 255); }
+.btn        { background: oklch(0.7 0.2431 30); }   /* chroma clamped to the P3 boundary */
+.btn-accent { background: oklch(0.5986 0.18 255); } /* + H-K lightness compensation */
 ```
 
 Two functions:
@@ -50,33 +50,37 @@ export default { plugins: [oklchPlus({ /* options */ })] };
 ```
 
 Options: `model` (`"nayatani"` default | `"delta"`), `lightnessFactor` (H-K sign/scale, default
-`1`), `chromaCap` (default `0.35`), `precision` (default `4`), `gamut` (default `"bell"`), and
+`1`), `chromaCap` (default `0.35`), `precision` (default `4`), `gamut` (default `"p3"`), and
 `safeName` / `hkName` / `safeHkName`.
 
 ### The H-K model (`model`)
 
-`"nayatani"` (default) is a **3-harmonic Fourier fit (R²=0.98) of the real Nayatani-1997 VAC**
-predictor, re-expressed in OKLCH hue. `"delta"` is here.build's legacy curve, kept only for
-byte-parity with current studio output — it is **perceptually miscalibrated** (it inverts the
-yellow and magenta peaks; anti-correlated with Nayatani, r≈−0.04). Don't use `delta` for new work.
+`"nayatani"` (default) is a **3-harmonic Fourier fit (R²=0.98) of Nayatani-1997's VAC hue term
+`q(θ)`** — its perceptual *shape*, evaluated over OKLCH hue at fixed chroma, rescaled to preserve
+Delta's existing compensation budget. (The *shape* is Nayatani; the *magnitude* is inherited Delta
+calibration — `S_uv` and `K_Br` are normalized away.) `"delta"` is here.build's legacy curve, kept
+only for byte-parity — it is **perceptually miscalibrated** (inverts the yellow and magenta peaks;
+anti-correlated with Nayatani, r≈−0.04). Don't use it for new work.
 
 ### The clamp tiers (`gamut`)
 
-`"bell"` (default) is a zero-dep, hue-agnostic wrap — the safe last resort. `"p3"` / `"srgb"`
-turn on **per-variance precision**, governed by which of `{L, H}` are static (chroma's binding-time
-is orthogonal — it only decides literal-vs-`min()`):
+`"p3"` (**default**) / `"srgb"` clamp to the *real* per-(L,H) gamut boundary (the zero-dep Ottosson
+tier, parity-verified against culori). Dispatch is by which of `{L, H}` are static (chroma's
+binding-time is orthogonal — it only decides literal-vs-`min()`):
 
 | | **H static** | **H dynamic** |
 |---|---|---|
-| **L static** | ① exact per-(L,H) max → a baked constant | ③ bell collapses to an L-constant |
-| **L dynamic** | ② per-hue cusp wrap → two lines, no trig | ④ global bell (last resort) |
+| **L static** | ① exact per-(L,H) max → a baked constant | ③ L-constant fallback |
+| **L dynamic** | ② per-hue cusp wrap → two lines, no trig | ④ bell envelope (fallback) |
 
-Static hue is the master key: it makes H-K free *and* unlocks the per-hue gamut shape. The precise
-tiers are also *more correct* than the bell — e.g. deep blue has far less P3 chroma than the bell's
-flat cap admits, so `gamut: "p3"` clamps it where the bell would leak.
+Static hue is the master key: it makes H-K free *and* unlocks the per-hue gamut shape.
 
-> The precise tiers currently use culori as the gamut oracle. A zero-dep Ottosson port is landing
-> next, validated for parity against culori — after which culori becomes a dev-only dependency.
+`"bell"` is **not** a gamut bound. It's a hue-agnostic pole-taper + stylistic chroma cap
+(`min(cap, sqrt(min(L,1−L)/2))`) that over-admits chroma vs P3 on almost every hue (up to ~6×). It
+fades chroma to zero at the white/black poles (killing hue distortion at the extremes) and caps at
+`chromaCap` — but it does **not** keep you in gamut. It exists only as the dynamic-hue fallback
+(cases ③/④), where the true per-hue boundary can't be expressed in CSS. Don't select it expecting
+in-gamut output.
 
 The pure math is also exported from `@here.build/postcss-oklch-plus/core`
 (`deltaHueFactor`, `hkCompensation`, `maxChromaBell`, `clampChromaBell`) for non-PostCSS use —
@@ -84,13 +88,13 @@ e.g. a Houdini paint worklet doing the same clamp live in the browser.
 
 ## Honesty notes
 
-- The default H-K model is a **3-harmonic Fourier fit of Nayatani-1997 VAC** (R²=0.98), re-expressed
-  in OKLCH hue so it lowers to six cheap trig terms — or, for static hue, to a single baked constant.
-  The full 4-harmonic `q(θ)` integral is reduced deliberately; the fit tracks it within ~0.5% across
-  hue. (The legacy `delta` model is perceptually wrong — see the `model` option.)
-- The gamut clamp is the bell-curve bound `min(cap, sqrt(min(L, 1−L)/2))`, not a full color-space
-  gamut map. It's fast, dependency-free, and keeps you inside P3 — which is the part browsers get
-  wrong. An accurate-gamut-map option (via a color library) is a planned opt-in.
+- The default H-K model fits the *shape* of Nayatani-1997's VAC hue term `q(θ)` (R²=0.98), at fixed
+  chroma, re-expressed in OKLCH hue and rescaled to Delta's budget. The magnitude is Delta's, not
+  Nayatani's (`S_uv`/`K_Br` dropped). It lowers to six cheap trig terms, or a baked constant for
+  static hue. (The legacy `delta` model is perceptually wrong — see the `model` option.)
+- The default clamp (`gamut: "p3"`) is the real per-(L,H) gamut boundary via a zero-dep Ottosson
+  port, parity-verified against culori (a dev-only oracle). `gamut: "bell"` is **not** a gamut bound
+  — it's a stylistic pole-taper + cap that over-admits chroma; it's the dynamic-hue fallback only.
 
 ### Why the clamp exists — the browser bugs it routes around
 
