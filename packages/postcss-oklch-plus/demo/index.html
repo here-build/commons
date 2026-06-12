@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>oklch, but better — perceptual color model comparison</title>
+<style>
+  :root { color-scheme: dark; --fg: #e7e7ea; --mut: #8a8a93; --bg: #0c0c0e; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, sans-serif;
+    padding: 4rem clamp(1rem, 5vw, 5rem); max-width: 1100px; margin-inline: auto;
+  }
+  h1 { font-size: clamp(1.6rem, 4vw, 2.4rem); margin: 0 0 .3rem; letter-spacing: -0.02em; }
+  h1 small { color: var(--mut); font-weight: 400; font-size: .55em; }
+  .lede { color: var(--mut); max-width: 62ch; margin: 0 0 2.5rem; }
+  .lede code, .lede b { color: var(--fg); }
+  .lede code { background: #1a1a1f; padding: .1em .35em; border-radius: 4px; font-size: .9em; }
+  .controls { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; }
+  .controls label { color: var(--mut); font-size: .85rem; min-width: 6.5rem; }
+  input[type=range] { flex: 1; accent-color: oklch(0.72 0.17 320); }
+  .val { font-variant-numeric: tabular-nums; min-width: 3.5rem; text-align: right; }
+
+  .stage { display: grid; grid-template-columns: 7rem 1fr; gap: 0 .75rem; }
+  .labels { display: grid; grid-template-rows: repeat(6, 90px); }
+  .labels div {
+    display: flex; align-items: center; justify-content: flex-end; text-align: right;
+    color: var(--mut); font-size: .8rem; line-height: 1.15; padding-right: .5rem;
+    border-right: 1px solid #26262c;
+  }
+  .labels b { color: var(--fg); font-weight: 600; }
+  .panels { display: grid; grid-template-rows: 90px 90px 90px 270px; }
+  .hou { height: 90px; background: paint(safe-field); }
+  .hou.nofallback { background: #1a1a1f; }
+  .hou .msg { display: flex; height: 100%; align-items: center; justify-content: center; color: var(--mut); font-size: .8rem; }
+  .native { position: relative; height: 90px; border-radius: 6px 6px 0 0; overflow: hidden; }
+  .native .grad { display: flex; height: 100%; }
+  .native .grad > i { flex: 1 1 0; }
+  .native canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  canvas#gl { width: 100%; height: 270px; display: block; border-radius: 0 0 6px 6px; }
+  .hue-axis { grid-column: 2; display: flex; justify-content: space-between; color: var(--mut); font-size: .72rem; margin-top: .4rem; }
+  .caption { color: var(--mut); font-size: .85rem; margin-top: 1.6rem; max-width: 68ch; }
+  .caption b { color: var(--fg); }
+  .swatch-key { display: inline-block; width: .8em; height: .8em; vertical-align: -1px;
+    background: repeating-linear-gradient(-45deg, transparent 0 2px, rgba(0,0,0,.55) 2px 3px); border: 1px solid #444; }
+  .err { color: oklch(0.7 0.2 25); }
+</style>
+</head>
+<body>
+  <h1>oklch, but better <small>— perceptual model comparison</small></h1>
+  <p class="lede">
+    The same hue&times;lightness field, five ways. <b>oklch</b> is a naive 2-stop
+    <code>linear-gradient(in oklch …)</code> over the full lightness range &mdash; literally what your
+    browser does, over-clamping the endpoints into garbage at high chroma. <b>safe(…)</b> is that
+    <i>same gradient</i> run through our resampler &mdash; 20 stops each clamped to the per-hue P3
+    boundary, emitted as plain CSS &mdash; so the browser renders it cleanly (the &ldquo;teardrop&rdquo;:
+    chroma fades to gray at the poles, where no colour fits). The <b>dark line</b> is the true per-hue
+    <b>P3 boundary</b> where the raw browser clips; on the lower bands the <b>white line</b> is where
+    <i>we</i> clamp after H&ndash;K shifts lightness. <b>ours</b> and <b>Nayatani&#8209;1997</b> add the
+    Helmholtz&ndash;Kohlrausch correction (our 3-harmonic fit vs. the real predictor via
+    <code>culori</code>). <b>&Delta;&times;20</b> is ours minus the reference, amplified.
+  </p>
+
+  <div class="controls">
+    <label for="chroma">chroma</label>
+    <input id="chroma" type="range" min="0" max="0.37" step="0.005" value="0.2" />
+    <span class="val" id="chromaVal">0.200</span>
+  </div>
+
+  <div class="stage">
+    <div class="labels">
+      <div><span><b>oklch</b><br>real CSS, native 2-stop</span></div>
+      <div><span><b>safe(…)</b><br>real CSS, resampled</span></div>
+      <div><span><b>safe() live</b><br>Houdini, per-pixel (sRGB)</span></div>
+      <div><span><b>ours</b><br>fit + P3 clamp</span></div>
+      <div><span><b>Nayatani&#8209;1997</b><br>reference</span></div>
+      <div><span><b>&Delta; &times;20</b><br>ours &minus; ref</span></div>
+    </div>
+    <div class="panels">
+      <div class="native">
+        <div class="grad" id="grad"></div>
+        <canvas id="ov"></canvas>
+      </div>
+      <div class="native"><div class="grad" id="safeGrad"></div></div>
+      <div class="hou" id="hou"></div>
+      <canvas id="gl"></canvas>
+    </div>
+    <div class="hue-axis">
+      <span>red</span><span>yellow</span><span>green</span><span>cyan</span><span>blue</span><span>magenta</span><span>red</span>
+    </div>
+  </div>
+
+  <p class="caption" id="caption">
+    Scan a row of constant lightness across hue. In <b>oklch</b> (your real browser) apparent brightness
+    lurches, and beyond the contour the native render is <b>clipping out of P3</b> &mdash; flattening
+    and hue-shifting. (This is a deliberately naive <b>2-stop</b> gradient over the full lightness
+    range &mdash; the bug at its starkest; a hand-authored multi-stop gradient would fare better.)
+    <b>ours</b>/<b>Nayatani-1997</b> even the brightness out and clamp chroma along that same boundary.
+    The <b>&Delta;</b> band is their difference &times;20: it proves the fit is <i>indistinguishably
+    close</i>, not bit-identical &mdash; the faint glow near yellow-green is the fit's largest residual
+    (~0.5%), honestly visible at this amplification. On a non-P3 display the browser clips narrower
+    than the P3 contour shown. Push <b>chroma</b> up to grow the effects.
+  </p>
+
+<script type="module">
+import { converter, clampChroma } from 'https://esm.sh/culori@4.0.2';
+
+/* ---------- real P3 maxChroma LUT (culori oracle): per-hue, non-linear ---------- */
+const HN = 180, LN = 96;
+const maxc = new Float32Array(HN * LN);
+for (let yi = 0; yi < LN; yi++) {
+  const L = (yi + 0.5) / LN;                    // texel-centered, matches GLSL/jsMaxC sampling
+  for (let xi = 0; xi < HN; xi++) {
+    const h = (xi + 0.5) * (360 / HN);
+    const r = clampChroma({ mode: 'oklch', l: L, c: 0.5, h }, 'oklch', 'p3');
+    maxc[yi * HN + xi] = (r && typeof r.c === 'number') ? r.c : 0;
+  }
+}
+function lutAt(xi, yi) {
+  xi = ((xi % HN) + HN) % HN;                 // hue wraps
+  yi = yi < 0 ? 0 : yi > LN - 1 ? LN - 1 : yi;
+  return maxc[yi * HN + xi];
+}
+function jsMaxC(h, L) {                         // bilinear — no stair-stepping
+  h = ((h % 360) + 360) % 360; L = Math.max(0, Math.min(1, L));
+  const fx = h / 360 * HN - 0.5, fy = L * LN - 0.5;   // texel-center, consistent with build + GLSL
+  const x0 = Math.floor(fx), y0 = Math.floor(fy);
+  const tx = fx - x0, ty = fy - y0;
+  const a = lutAt(x0, y0), b = lutAt(x0 + 1, y0), c = lutAt(x0, y0 + 1), d = lutAt(x0 + 1, y0 + 1);
+  return (a * (1 - tx) + b * tx) * (1 - ty) + (c * (1 - tx) + d * tx) * ty;
+}
+
+/* ---------- native band: real CSS oklch gradients (naive 2-stop, full 0–100% L) ----------
+   Deliberately a plain 2-stop gradient over the FULL lightness range: at high chroma the browser
+   over-clamps the white/black endpoints and interpolates between them, producing visibly wrong
+   colours that no per-pixel clamp would. That failure is the point — it's the browser bug. */
+const Ltop = 1.0, Lbot = 0.0;
+const grad = document.getElementById('grad');
+const STEP = 2;                    // finer hue strips → no vertical banding between hues
+for (let h = 0; h < 360; h += STEP) {
+  const i = document.createElement('i');
+  const hue = h + STEP / 2;
+  i.style.background = `linear-gradient(in oklch to bottom, oklch(${Ltop} var(--c) ${hue}), oklch(${Lbot} var(--c) ${hue}))`;
+  grad.appendChild(i);
+}
+/* ---------- safe(gradient) band: resample each hue to clamped stops (the teardrop) ---------- */
+const safeGrad = document.getElementById('safeGrad');
+const safeStrips = [];
+for (let h = 0; h < 360; h += STEP) {
+  const el = document.createElement('i');
+  el.dataset.hue = String(h + STEP / 2);
+  safeGrad.appendChild(el);
+  safeStrips.push(el);
+}
+const Lof = t => Ltop - t * (Ltop - Lbot);
+// Demo field is 180 separate hue strips, so stops are on a SHARED uniform grid (aligned across
+// strips → no cross-strip misalignment). A real single safe(gradient) uses adaptive stops in the
+// plugin, where there are no neighbouring strips to misalign against.
+const SAFE_STOPS = 48;
+function safeGradientCss(hue, chroma) {
+  const parts = [];
+  for (let k = 0; k < SAFE_STOPS; k++) {
+    const t = k / (SAFE_STOPS - 1);
+    const L = Lof(t), c = Math.min(chroma, jsMaxC(hue, L));
+    parts.push(`oklch(${L.toFixed(4)} ${c.toFixed(4)} ${hue}) ${(t * 100).toFixed(2)}%`);
+  }
+  return `linear-gradient(in oklch to bottom, ${parts.join(', ')})`;
+}
+function drawSafe(chroma) {
+  for (const el of safeStrips) el.style.background = safeGradientCss(+el.dataset.hue, chroma);
+}
+
+const ov = document.getElementById('ov');
+const OW = 540, OH = 135;
+ov.width = OW; ov.height = OH;
+const octx = ov.getContext('2d');
+function drawNativeContour(chroma) {
+  // clipped mask: is this color outside P3?
+  const clip = new Uint8Array(OW * OH);
+  for (let y = 0; y < OH; y++) {
+    const L = Ltop - (y / (OH - 1)) * (Ltop - Lbot);
+    for (let x = 0; x < OW; x++) {
+      clip[y * OW + x] = chroma > jsMaxC((x + 0.5) * (360 / OW), L) ? 1 : 0;
+    }
+  }
+  // draw the boundary (edge of the mask) as a white contour line
+  const img = octx.createImageData(OW, OH);
+  for (let y = 0; y < OH; y++) {
+    for (let x = 0; x < OW; x++) {
+      const c = clip[y * OW + x];
+      const up = y > 0 ? clip[(y - 1) * OW + x] : c;
+      const lf = x > 0 ? clip[y * OW + x - 1] : c;
+      if (c !== up || c !== lf) {
+        const i = (y * OW + x) * 4;
+        img.data[i] = img.data[i + 1] = img.data[i + 2] = 0;   // dark = browser clip (matches lower bands)
+        img.data[i + 3] = 220;
+      }
+    }
+  }
+  octx.putImageData(img, 0, 0);
+}
+
+/* ---------- WebGL bands: ours / nayatani / diff, real-P3 clamp from LUT ---------- */
+const VERT = `#version 300 es
+in vec2 p; void main(){ gl_Position = vec4(p, 0.0, 1.0); }`;
+
+const FRAG = `#version 300 es
+precision highp float;
+uniform vec2 uRes;
+uniform float uChroma;
+uniform sampler2D uRef;     // 1D: real Nayatani weight per hue
+uniform sampler2D uMaxC;    // 2D: P3 maxChroma over (hue, L)
+out vec4 o;
+const int BANDS = 3;
+const vec2 LUTSZ = vec2(180.0, 96.0);
+
+vec3 oklchLin(float L, float C, float Hdeg){
+  float h = radians(Hdeg);
+  float a = C*cos(h), b = C*sin(h);
+  float l_ = L + 0.3963377774*a + 0.2158037573*b;
+  float m_ = L - 0.1055613458*a - 0.0638541728*b;
+  float s_ = L - 0.0894841775*a - 1.2914855480*b;
+  float l = l_*l_*l_, m = m_*m_*m_, s = s_*s_*s_;
+  return vec3(
+     4.0767416621*l - 3.3077115913*m + 0.2309699292*s,
+    -1.2684380046*l + 2.6097574011*m - 0.3413193965*s,
+    -0.0041960863*l - 0.7034186147*m + 1.7076147010*s);
+}
+vec3 toSrgb(vec3 c){
+  c = clamp(c, 0.0, 1.0);
+  return mix(12.92*c, 1.055*pow(c, vec3(1.0/2.4)) - 0.055, step(0.0031308, c));
+}
+float fitWeight(float Hdeg){
+  float r = radians(Hdeg);
+  return 0.77911
+    + 0.08091*cos(r)       - 0.13593*sin(r)
+    + 0.06202*cos(2.0*r)   - 0.00365*sin(2.0*r)
+    - 0.01415*cos(3.0*r)   + 0.03377*sin(3.0*r);
+}
+// bilinear sample of the real-P3 maxChroma LUT
+float maxChromaP3(float Hdeg, float L){
+  vec2 uv = vec2(Hdeg / 360.0, clamp(L, 0.0, 1.0));
+  vec2 t = uv * LUTSZ - 0.5;
+  vec2 f = fract(t);
+  vec2 b0 = (floor(t) + 0.5) / LUTSZ;
+  vec2 b1 = b0 + 1.0 / LUTSZ;
+  float c00 = texture(uMaxC, vec2(b0.x, b0.y)).r;
+  float c10 = texture(uMaxC, vec2(b1.x, b0.y)).r;
+  float c01 = texture(uMaxC, vec2(b0.x, b1.y)).r;
+  float c11 = texture(uMaxC, vec2(b1.x, b1.y)).r;
+  return mix(mix(c00, c10, f.x), mix(c01, c11, f.x), f.y);
+}
+vec3 model(float L, float C, float Hdeg, float weight, out float over, out float mC){
+  float Lp = L - 0.14 * C * weight;
+  mC = maxChromaP3(Hdeg, Lp);
+  over = C - mC;
+  return toSrgb(oklchLin(Lp, min(C, mC), Hdeg));
+}
+
+void main(){
+  float u = gl_FragCoord.x / uRes.x;
+  float v = gl_FragCoord.y / uRes.y;
+  float H = u * 360.0;
+  float bf = (1.0 - v) * float(BANDS);
+  int band = int(floor(bf));
+  float inBand = fract(bf);
+  if (inBand < 0.012 || inBand > 0.988) { o = vec4(0.05, 0.05, 0.06, 1.0); return; }
+  float L = mix(1.0, 0.0, inBand);
+
+  if (band == 2) {
+    float o0, o1, m0, m1;
+    vec3 a = model(L, uChroma, H, fitWeight(H), o0, m0);
+    vec3 b = model(L, uChroma, H, texture(uRef, vec2(u, 0.5)).r, o1, m1);
+    o = vec4(clamp(abs(a - b) * 20.0, 0.0, 1.0), 1.0);
+    return;
+  }
+  float over, mC;
+  float weight = (band == 0) ? fitWeight(H) : texture(uRef, vec2(u, 0.5)).r;
+  vec3 col = model(L, uChroma, H, weight, over, mC);
+
+  // dark line: where the raw browser would clip (no H-K, raw L) — same boundary as the native band
+  float overN = uChroma - maxChromaP3(H, L);
+  float lineN = 1.0 - smoothstep(0.0, fwidth(overN) * 1.6, abs(overN));
+  col = mix(col, vec3(0.0), lineN * 0.5);
+
+  // white line: where WE clamp, after H-K shifts L to Lp — the gap between the two IS the H-K
+  float line = 1.0 - smoothstep(0.0, fwidth(over) * 1.6, abs(over));
+  col = mix(col, vec3(1.0), line * 0.85);
+
+  o = vec4(col, 1.0);
+}`;
+
+const canvas = document.getElementById('gl');
+const gl = canvas.getContext('webgl2', { antialias: false });
+if (!gl) {
+  document.getElementById('caption').innerHTML =
+    '<span class="err">WebGL2 is required for the lower three bands and is unavailable here.</span>';
+} else {
+  const compile = (type, src) => {
+    const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+    return s;
+  };
+  const prog = gl.createProgram();
+  gl.attachShader(prog, compile(gl.VERTEX_SHADER, VERT));
+  gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, FRAG));
+  gl.linkProgram(prog);
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+  gl.useProgram(prog);
+
+  const vbo = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 3,-1, -1,3]), gl.STATIC_DRAW);
+  const loc = gl.getAttribLocation(prog, 'p');
+  gl.enableVertexAttribArray(loc);
+  gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+
+  // 1D Nayatani reference LUT. Nayatani's θ is the CIE 1976 u'v' hue angle about the D65 white;
+  // culori's `luv` is D50, so we compute u'v' from XYZ(D65) directly to avoid an ~8° θ error.
+  const toXyz = converter('xyz65');
+  const UN = 0.197839, VN = 0.468342;            // D65 white point in u'v'
+  function uvAngle(l, c, h) {
+    const { x, y, z } = toXyz({ mode: 'oklch', l, c, h });
+    const d = x + 15 * y + 3 * z || 1e-9;
+    return Math.atan2(9 * y / d - VN, 4 * x / d - UN);
+  }
+  const q = t => -0.01585
+    - 0.03017*Math.cos(t) - 0.04556*Math.cos(2*t) - 0.02667*Math.cos(3*t) - 0.00295*Math.cos(4*t)
+    + 0.14592*Math.sin(t) + 0.05084*Math.sin(2*t) - 0.01900*Math.sin(3*t) - 0.00764*Math.sin(4*t);
+  const ref = new Float32Array(360);
+  for (let h = 0; h < 360; h++) {
+    ref[h] = (0.0872 - 0.1340 * q(uvAngle(0.65, 0.12, h))) * 8.5829;
+  }
+  const mkTex = (unit, w, h, data) => {
+    const t = gl.createTexture();
+    gl.activeTexture(gl.TEXTURE0 + unit);
+    gl.bindTexture(gl.TEXTURE_2D, t);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.R32F, w, h, 0, gl.RED, gl.FLOAT, data);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    return t;
+  };
+  mkTex(0, 360, 1, ref);
+  mkTex(1, HN, LN, maxc);
+  gl.uniform1i(gl.getUniformLocation(prog, 'uRef'), 0);
+  gl.uniform1i(gl.getUniformLocation(prog, 'uMaxC'), 1);
+
+  const uRes = gl.getUniformLocation(prog, 'uRes');
+  const uChroma = gl.getUniformLocation(prog, 'uChroma');
+  window.__renderGL = () => {
+    const w = Math.round(canvas.clientWidth * devicePixelRatio);
+    const h = Math.round(270 * devicePixelRatio);
+    if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.uniform2f(uRes, canvas.width, canvas.height);
+    gl.uniform1f(uChroma, parseFloat(chromaInput.value));
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+  };
+}
+
+// Houdini paint worklet (Chrome/Safari) — live per-pixel safe()
+(function initHoudini() {
+  const hou = document.getElementById('hou');
+  if (typeof CSS === 'undefined' || !('paintWorklet' in CSS)) {
+    hou.classList.add('nofallback');
+    hou.innerHTML = '<div class="msg">Houdini Paint API unavailable (Firefox) — this is the live-only surface; the compiled <b style="color:var(--fg)">safe(…)</b> band above is what ships.</div>';
+    return;
+  }
+  try { CSS.registerProperty({ name: '--c', syntax: '<number>', inherits: true, initialValue: '0.2' }); } catch (e) { /* already registered */ }
+  CSS.paintWorklet.addModule('./safe-worklet.js').catch(() => {
+    hou.classList.add('nofallback');
+    hou.innerHTML = '<div class="msg">Could not load the paint worklet.</div>';
+  });
+})();
+
+const chromaInput = document.getElementById('chroma');
+const chromaVal = document.getElementById('chromaVal');
+function apply(){
+  const c = parseFloat(chromaInput.value);
+  chromaVal.textContent = c.toFixed(3);
+  document.documentElement.style.setProperty('--c', c);   // inherits to native gradients + worklet
+  drawSafe(c);
+  drawNativeContour(c);
+  if (window.__renderGL) window.__renderGL();
+}
+chromaInput.addEventListener('input', apply);
+addEventListener('resize', () => window.__renderGL && window.__renderGL());
+apply();
+</script>
+</body>
+</html>
