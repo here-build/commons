@@ -18,8 +18,6 @@
  */
 
 import {
-  deltaHueFactor,
-  deltaHueFactorCss,
   clampChromaBell,
   clampChromaBellCss,
   maxChromaBell,
@@ -28,11 +26,14 @@ import {
 } from "./core.js";
 import type { Comp, OklchArgs } from "./parse.js";
 import type { GamutModel } from "./gamut.js";
+import type { HueModel } from "./core.js";
 
 export interface LowerOptions {
   lightnessFactor: number;
   chromaCap: number;
   precision: number;
+  /** Hue model for the H-K compensation (default: corrected Nayatani). */
+  hue: HueModel;
   /** Gamut model for the precise clamp tiers; `null` → the zero-dep bell wrap. */
   gamut: GamutModel | null;
 }
@@ -65,7 +66,7 @@ function hkAdjustL(args: OklchArgs, opts: LowerOptions): { L: Comp; usedRuntimeT
   const Lbase = asExpr(args.L, precision);
 
   if (args.H.kind === "static") {
-    const hf = deltaHueFactor(args.H.value);
+    const hf = opts.hue.factor(args.H.value);
 
     if (args.C.kind === "static") {
       // hue + chroma static → H-K is a single constant
@@ -85,8 +86,8 @@ function hkAdjustL(args: OklchArgs, opts: LowerOptions): { L: Comp; usedRuntimeT
     };
   }
 
-  // hue dynamic → pay live trig (the simplified-Nayatani formula, evaluated at runtime)
-  const hkExpr = `calc(${fmt(k, precision)} * ${asExpr(args.C, precision)} * ${deltaHueFactorCss(asExpr(args.H, precision))})`;
+  // hue dynamic → pay live trig (the hue-model formula, evaluated at runtime on a lowered leaf)
+  const hkExpr = `calc(${fmt(k, precision)} * ${asExpr(args.C, precision)} * ${opts.hue.factorCss(asExpr(args.H, precision))})`;
   return {
     L: { kind: "dynamic", expr: `calc(${Lbase} - ${hkExpr})` },
     usedRuntimeTrig: true,

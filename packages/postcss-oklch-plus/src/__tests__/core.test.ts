@@ -1,27 +1,29 @@
 import { describe, expect, it } from "vitest";
 import {
+  nayataniHueFactor,
   deltaHueFactor,
   hkCompensation,
   maxChromaBell,
   clampChromaBell,
+  DELTA,
 } from "../core.js";
 
-describe("deltaHueFactor", () => {
-  it("is a pure function of hue with no chroma dependence", () => {
-    // warm hue near the cosine lobe baseline
+describe("nayataniHueFactor (default, corrected)", () => {
+  it("is a pure function of hue", () => {
+    expect(nayataniHueFactor(30)).toBeCloseTo(0.8428, 3);
+  });
+
+  it("fixes the perceptual peaks: magenta bright, yellow dim", () => {
+    // the whole point of the rework — the old delta curve had these inverted
+    expect(nayataniHueFactor(300)).toBeGreaterThan(nayataniHueFactor(110)); // magenta > yellow
+    expect(nayataniHueFactor(110)).toBeLessThan(nayataniHueFactor(30)); // yellow < red-orange
+    expect(nayataniHueFactor(300)).toBeGreaterThan(nayataniHueFactor(150)); // magenta > green
+  });
+});
+
+describe("deltaHueFactor (legacy parity)", () => {
+  it("is preserved unchanged for byte-parity mode", () => {
     expect(deltaHueFactor(30)).toBeCloseTo(0.75, 2);
-  });
-
-  it("peaks the blue bump near 255°", () => {
-    expect(deltaHueFactor(255)).toBeGreaterThan(deltaHueFactor(255 + 90));
-  });
-
-  it("stays within the clamped range [0.3, 1.2]", () => {
-    for (let h = 0; h < 360; h += 5) {
-      const f = deltaHueFactor(h);
-      expect(f).toBeGreaterThanOrEqual(0.3);
-      expect(f).toBeLessThanOrEqual(1.2);
-    }
   });
 });
 
@@ -30,9 +32,14 @@ describe("hkCompensation", () => {
     expect(hkCompensation(0, 30)).toBe(0);
   });
 
-  it("matches the hand-computed Delta value for (0.2, 30°)", () => {
+  it("defaults to the corrected Nayatani model", () => {
+    // 1 * 0.14 * 0.2 * 0.8428 = 0.0236
+    expect(hkCompensation(0.2, 30)).toBeCloseTo(0.0236, 4);
+  });
+
+  it("reproduces the legacy value under the delta model", () => {
     // 1 * 0.14 * 0.2 * 0.75 = 0.021
-    expect(hkCompensation(0.2, 30)).toBeCloseTo(0.021, 4);
+    expect(hkCompensation(0.2, 30, 1, DELTA)).toBeCloseTo(0.021, 4);
   });
 
   it("scales linearly with chroma", () => {

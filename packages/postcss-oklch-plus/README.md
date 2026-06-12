@@ -31,8 +31,8 @@ Both functions are **binding-time aware**. Static arguments fold to constants; d
 ```css
 /* static hue, animated lightness */
 --bg: oklch-safe-hk(var(--l) 0.2 30);
-/*  ↓ the H-K term folds to the constant 0.021; no cos/pow ships */
---bg: oklch(calc(var(--l) - 0.021) min(0.35, sqrt(min(calc(var(--l) - 0.021), 1 - calc(var(--l) - 0.021)) / 2), 0.2) 30);
+/*  ↓ the H-K term folds to the constant 0.0236; no cos/sin ships */
+--bg: oklch(calc(var(--l) - 0.0236) min(0.35, sqrt(min(calc(var(--l) - 0.0236), 1 - calc(var(--l) - 0.0236)) / 2), 0.2) 30);
 ```
 
 | inputs | result |
@@ -49,8 +49,16 @@ import oklchPlus from "@here.build/postcss-oklch-plus";
 export default { plugins: [oklchPlus({ /* options */ })] };
 ```
 
-Options: `lightnessFactor` (H-K sign/scale, default `1`), `chromaCap` (default `0.35`),
-`precision` (default `4`), `gamut` (default `"bell"`), and `safeName` / `hkName` / `safeHkName`.
+Options: `model` (`"nayatani"` default | `"delta"`), `lightnessFactor` (H-K sign/scale, default
+`1`), `chromaCap` (default `0.35`), `precision` (default `4`), `gamut` (default `"bell"`), and
+`safeName` / `hkName` / `safeHkName`.
+
+### The H-K model (`model`)
+
+`"nayatani"` (default) is a **3-harmonic Fourier fit (R²=0.98) of the real Nayatani-1997 VAC**
+predictor, re-expressed in OKLCH hue. `"delta"` is here.build's legacy curve, kept only for
+byte-parity with current studio output — it is **perceptually miscalibrated** (it inverts the
+yellow and magenta peaks; anti-correlated with Nayatani, r≈−0.04). Don't use `delta` for new work.
 
 ### The clamp tiers (`gamut`)
 
@@ -76,10 +84,10 @@ e.g. a Houdini paint worklet doing the same clamp live in the browser.
 
 ## Honesty notes
 
-- The H-K model is a **simplified Nayatani**: it keeps Nayatani's two-peak structure (warm-hue
-  lobe + independent blue bump) but reduces it to an O(1) cosine + Gaussian so it lowers to cheap
-  CSS instead of melting the style engine. Not naive, not the full VAC/VCC integral — simplified
-  on purpose.
+- The default H-K model is a **3-harmonic Fourier fit of Nayatani-1997 VAC** (R²=0.98), re-expressed
+  in OKLCH hue so it lowers to six cheap trig terms — or, for static hue, to a single baked constant.
+  The full 4-harmonic `q(θ)` integral is reduced deliberately; the fit tracks it within ~0.5% across
+  hue. (The legacy `delta` model is perceptually wrong — see the `model` option.)
 - The gamut clamp is the bell-curve bound `min(cap, sqrt(min(L, 1−L)/2))`, not a full color-space
   gamut map. It's fast, dependency-free, and keeps you inside P3 — which is the part browsers get
   wrong. An accurate-gamut-map option (via a color library) is a planned opt-in.

@@ -18,8 +18,14 @@ import { lowerSafe, lowerHk, lowerSafeHk, type LowerOptions, type LowerResult } 
 import type { OklchArgs } from "./parse.js";
 import { ottossonGamut } from "./gamut-ottosson.js";
 import type { GamutModel } from "./gamut.js";
+import { HUE_MODELS } from "./core.js";
 
 export interface PluginOptions {
+  /**
+   * H-K hue model. `"nayatani"` (default) = corrected 3-harmonic Nayatani-1997 fit. `"delta"` =
+   * legacy here.build curve, kept only for output parity (perceptually miscalibrated).
+   */
+  model?: "nayatani" | "delta";
   /** Sign/scale of the H-K compensation (Delta's `--⚙️lightness-factor`). Default 1. */
   lightnessFactor?: number;
   /** Max chroma cap for the gamut clamp. Default 0.35. */
@@ -64,6 +70,7 @@ const creator = (options: PluginOptions = {}): Plugin => {
     lightnessFactor: options.lightnessFactor ?? 1,
     chromaCap: options.chromaCap ?? 0.35,
     precision: options.precision ?? 4,
+    hue: HUE_MODELS[options.model ?? "nayatani"],
     gamut,
   };
   const lowerers: Record<string, (args: OklchArgs, o: LowerOptions) => LowerResult> = {
