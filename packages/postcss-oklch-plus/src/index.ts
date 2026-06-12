@@ -38,11 +38,11 @@ export interface PluginOptions {
    * over-permissive vs P3; reserved for the dynamic-hue fallback. Default is `"p3"`.
    */
   gamut?: "bell" | "p3" | "srgb";
-  /** Function name for gamut clamp only. Default "oklch-safe". */
+  /** Function name for gamut clamp only. Default "safe" (alias "oklch-safe"). */
   safeName?: string;
-  /** Function name for H-K compensation only. Default "oklch-hk". */
+  /** Function name for H-K compensation only. Default "hk" (alias "oklch-hk"). */
   hkName?: string;
-  /** Function name for H-K + clamp. Default "oklch-safe-hk". */
+  /** Function name for H-K + clamp. Default "safe-hk" (alias "oklch-safe-hk"). */
   safeHkName?: string;
 }
 
@@ -75,10 +75,14 @@ const creator = (options: PluginOptions = {}): Plugin => {
     gamut,
   };
   const lowerers: Record<string, (args: OklchArgs, o: LowerOptions) => LowerResult> = {
-    [options.safeName ?? "oklch-safe"]: lowerSafe,
-    [options.hkName ?? "oklch-hk"]: lowerHk,
-    [options.safeHkName ?? "oklch-safe-hk"]: lowerSafeHk,
+    [options.safeName ?? "safe"]: lowerSafe,
+    [options.hkName ?? "hk"]: lowerHk,
+    [options.safeHkName ?? "safe-hk"]: lowerSafeHk,
   };
+  // back-compat aliases (only when names aren't customized)
+  if (!options.safeName) lowerers["oklch-safe"] = lowerSafe;
+  if (!options.hkName) lowerers["oklch-hk"] = lowerHk;
+  if (!options.safeHkName) lowerers["oklch-safe-hk"] = lowerSafeHk;
   const names = Object.keys(lowerers);
 
   return {

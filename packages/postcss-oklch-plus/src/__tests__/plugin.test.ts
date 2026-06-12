@@ -32,6 +32,23 @@ describe("oklch-safe (gamut clamp only, P3 default)", () => {
   });
 });
 
+describe("safe() / safe-hk() — canonical names + oklch() wrapper", () => {
+  it("safe is an alias for the gamut clamp", () => {
+    expect(value("safe(0.7 0.5 30)")).toBe(value("oklch-safe(0.7 0.5 30)"));
+  });
+  it("safe-hk wraps a full oklch() color", () => {
+    expect(value("safe-hk(oklch(0.7 0.2 30))")).toBe(value("oklch-safe-hk(0.7 0.2 30)"));
+  });
+  it("safe() unwraps oklch() and clamps to P3", () => {
+    expect(value("safe(oklch(0.7 0.5 30))")).toBe("oklch(0.7 0.2431 30)");
+  });
+  it("safe-hk with literal hue is trig-free even with var L/C", () => {
+    const out = value("safe-hk(oklch(var(--l) var(--c) 30))");
+    expect(out).not.toContain("cos(");
+    expect(out).toContain("var(--l)");
+  });
+});
+
 describe("emission guards", () => {
   it("accepts angle-unit hue as static (folds, no trig)", () => {
     const out = value("oklch-hk(0.7 0.2 30deg)");

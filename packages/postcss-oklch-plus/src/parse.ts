@@ -76,6 +76,15 @@ export function parseOklchArgs(nodes: PNode[]): OklchArgs | null {
     }
     (afterSlash ? alpha : main).push(n);
   }
+  // unwrap a wrapped color: safe(oklch(L C H)) → parse the inner oklch()
+  if (
+    main.length === 1 &&
+    alpha.length === 0 &&
+    main[0]!.type === "function" &&
+    (main[0] as valueParser.FunctionNode).value.toLowerCase() === "oklch"
+  ) {
+    return parseOklchArgs((main[0] as valueParser.FunctionNode).nodes);
+  }
   if (main.length !== 3) return null;
   const [l, c, h] = main as [PNode, PNode, PNode];
   return {
