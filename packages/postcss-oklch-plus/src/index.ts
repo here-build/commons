@@ -33,8 +33,9 @@ export interface PluginOptions {
   /** Decimal places for emitted literals. Default 4. */
   precision?: number;
   /**
-   * Clamp target. `"bell"` (default) = zero-dep hue-agnostic wrap. `"p3"` / `"srgb"` = precise
-   * per-(L,H) gamut tiers (exact constant + per-hue cusp wrap) via the gamut model.
+   * Clamp target. `"p3"` (default) / `"srgb"` = the verified per-(L,H) gamut clamp (zero-dep
+   * Ottosson tier). `"bell"` = the hue-agnostic pole-taper + stylistic cap — NOT a gamut guarantee,
+   * over-permissive vs P3; reserved for the dynamic-hue fallback. Default is `"p3"`.
    */
   gamut?: "bell" | "p3" | "srgb";
   /** Function name for gamut clamp only. Default "oklch-safe". */
@@ -62,9 +63,9 @@ function replaceWithLiteral(node: valueParser.Node, css: string): void {
 }
 
 const creator = (options: PluginOptions = {}): Plugin => {
-  const gamutChoice = options.gamut ?? "bell";
+  const gamutChoice = options.gamut ?? "p3";
   const gamut: GamutModel | null =
-    gamutChoice === "p3" ? ottossonGamut("p3") : gamutChoice === "srgb" ? ottossonGamut("srgb") : null;
+    gamutChoice === "srgb" ? ottossonGamut("srgb") : gamutChoice === "bell" ? null : ottossonGamut("p3");
 
   const opts: LowerOptions = {
     lightnessFactor: options.lightnessFactor ?? 1,
@@ -82,7 +83,7 @@ const creator = (options: PluginOptions = {}): Plugin => {
 
   return {
     postcssPlugin: "postcss-oklch-plus",
-    Declaration(decl) {
+    Declaration(decl, { result }) {
       if (!names.some((n) => decl.value.includes(n))) return;
       const parsed = valueParser(decl.value);
       let changed = false;
@@ -92,7 +93,10 @@ const creator = (options: PluginOptions = {}): Plugin => {
         const lower = lowerers[node.value];
         if (!lower) return;
         const args = parseOklchArgs(node.nodes);
-        if (!args) return;
+        if (!args) {
+          decl.warn(result, `${node.value}() expects "L C H [/ A]" — got ${valueParser.stringify(node)}`);
+          return false;
+        }
         replaceWithLiteral(node, lower(args, opts).css);
         changed = true;
         return false; // don't descend into the replaced literal

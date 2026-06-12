@@ -31,22 +31,27 @@ export const HK_K = 0.14;
 /* ------------------------------------------------------------------ gamut */
 
 /**
- * Delta's bell-curve approximation of the maximum in-gamut chroma at lightness `L`.
- * `min(cap, sqrt(min(L, 1 - L) / 2))` — peaks in the mid-lightness range, falls to zero at the
- * black/white poles where no chroma fits.
+ * The "bell" envelope: a POLE TAPER plus a stylistic chroma cap. `min(cap, sqrt(min(L,1-L)/2))`
+ * fades chroma to zero at the white/black poles (preventing the hue distortion you get approaching
+ * the lightness extremes) and caps at `cap`.
+ *
+ * IMPORTANT: this is NOT a per-hue gamut bound. It is hue-agnostic and over-permissive vs P3 on
+ * almost all of the (hue, L) plane (it admits up to ~6× the legal chroma for low-gamut hues). Use
+ * the P3/sRGB Ottosson tiers (`GamutModel`) for an actual in-gamut guarantee. Bell is the LAST
+ * RESORT, reserved for the dynamic-hue case where the true per-hue boundary isn't computable in CSS.
  */
 export function maxChromaBell(L: number, cap = DEFAULT_CHROMA_CAP): number {
-  return Math.min(cap, Math.sqrt(Math.min(L, 1 - L) / 2));
+  return Math.min(cap, Math.sqrt(Math.max(0, Math.min(L, 1 - L)) / 2)); // max(0,…) → no NaN out of range
 }
 
-/** Clamp a requested chroma to the in-gamut bell bound at `L`. */
+/** Clamp a requested chroma to the bell envelope at `L` (chroma floored at 0). */
 export function clampChromaBell(L: number, C: number, cap = DEFAULT_CHROMA_CAP): number {
-  return Math.min(maxChromaBell(L, cap), C);
+  return Math.min(maxChromaBell(L, cap), Math.max(0, C));
 }
 
 /** The same clamp as a live CSS expression (used when `L` is dynamic and cannot be pre-resolved). */
 export function clampChromaBellCss(LExpr: string, CExpr: string, cap = DEFAULT_CHROMA_CAP): string {
-  return `min(${cap}, sqrt(min(${LExpr}, 1 - ${LExpr}) / 2), ${CExpr})`;
+  return `min(${cap}, sqrt(max(0, min(${LExpr}, 1 - ${LExpr})) / 2), ${CExpr})`;
 }
 
 /* --------------------------------------------------------------------- H-K */

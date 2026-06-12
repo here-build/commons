@@ -11,23 +11,53 @@ function value(css: string, opts?: PluginOptions): string {
   return run(`a { color: ${css}; }`, opts).match(/color:\s*(.+);/)![1]!;
 }
 
-describe("oklch-safe (gamut clamp only)", () => {
-  it("bakes a static color to a flat clamped literal", () => {
-    expect(value("oklch-safe(0.7 0.5 30)")).toBe("oklch(0.7 0.35 30)");
+describe("oklch-safe (gamut clamp only, P3 default)", () => {
+  it("bakes a static color to the exact P3-clamped literal", () => {
+    expect(value("oklch-safe(0.7 0.5 30)")).toBe("oklch(0.7 0.2431 30)");
   });
 
   it("passes through chroma already in gamut", () => {
     expect(value("oklch-safe(0.7 0.1 30)")).toBe("oklch(0.7 0.1 30)");
   });
 
-  it("keeps the clamp live when L is dynamic", () => {
+  it("uses the per-hue cusp wrap (not bell) when L is dynamic", () => {
     const out = value("oklch-safe(var(--l) 0.2 30)");
-    expect(out).toContain("sqrt(");
+    expect(out).not.toContain("sqrt(");            // P3 cusp triangle, not the bell envelope
+    expect(out).toContain("(1 - var(--l))");
     expect(out).toContain("var(--l)");
   });
 
   it("preserves alpha", () => {
-    expect(value("oklch-safe(0.7 0.5 30 / 0.5)")).toBe("oklch(0.7 0.35 30 / 0.5)");
+    expect(value("oklch-safe(0.7 0.5 30 / 0.5)")).toBe("oklch(0.7 0.2431 30 / 0.5)");
+  });
+});
+
+describe("emission guards", () => {
+  it("accepts angle-unit hue as static (folds, no trig)", () => {
+    const out = value("oklch-hk(0.7 0.2 30deg)");
+    expect(out).not.toContain("cos(");
+    expect(out).toBe(value("oklch-hk(0.7 0.2 30)")); // 30deg === 30
+  });
+
+  it("folds turn/grad/rad hue units", () => {
+    expect(value("oklch-hk(0.7 0.2 0.25turn)")).toBe(value("oklch-hk(0.7 0.2 90)"));
+  });
+
+  it("passes `none` channels through untouched (no broken math)", () => {
+    expect(value("oklch-safe(0.7 none 30)")).toBe("oklch(0.7 none 30)");
+    expect(value("oklch-hk(none 0.2 30)")).toBe("oklch(none 0.2 30)");
+    expect(value("oklch-safe-hk(0.7 0.2 none)")).toBe("oklch(0.7 0.2 none)");
+  });
+
+  it("never emits NaN for out-of-range lightness", () => {
+    expect(value("oklch-safe(-0.5 0.2 30)", { gamut: "bell" })).not.toContain("NaN");
+    expect(value("oklch-safe(1.5 0.2 30)")).not.toContain("NaN");
+  });
+
+  it("warns on malformed arity instead of shipping an unknown function", () => {
+    const res = postcss([plugin()]).process("a{color:oklch-safe(0.7 0.2 30 40)}", { from: undefined });
+    expect(res.warnings().length).toBe(1);
+    expect(res.css).toContain("oklch-safe(0.7 0.2 30 40)"); // left untouched, but flagged
   });
 });
 

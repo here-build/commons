@@ -48,8 +48,11 @@ describe("gamut: p3 — ② per-hue cusp wrap (L dynamic, H static)", () => {
   });
 });
 
-describe("gamut: bell remains the default", () => {
-  it("does not invoke the gamut model unless asked", () => {
-    expect(value("oklch-safe(0.7 0.5 30)")).toBe("oklch(0.7 0.35 30)");
+describe("P3 is the default; bell is opt-in", () => {
+  it("default clamps to the exact P3 boundary", () => {
+    expect(value("oklch-safe(0.7 0.5 30)")).toBe(`oklch(0.7 ${expectedMaxChroma(0.7, 30)} 30)`);
+  });
+  it("gamut:'bell' uses the hue-agnostic envelope (the stylistic cap, not a gamut bound)", () => {
+    expect(value("oklch-safe(0.7 0.5 30)", { gamut: "bell" })).toBe("oklch(0.7 0.35 30)");
   });
 });

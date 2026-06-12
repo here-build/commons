@@ -24,6 +24,7 @@ import {
   clamp,
   HK_K,
 } from "./core.js";
+import { isNone } from "./parse.js";
 import type { Comp, OklchArgs } from "./parse.js";
 import type { GamutModel } from "./gamut.js";
 import type { HueModel } from "./core.js";
@@ -55,6 +56,11 @@ function asExpr(c: Comp, precision: number): string {
 function emit(L: Comp, C: Comp, H: Comp, alpha: Comp | null, precision: number): string {
   const head = `${asExpr(L, precision)} ${asExpr(C, precision)} ${asExpr(H, precision)}`;
   return alpha === null ? `oklch(${head})` : `oklch(${head} / ${asExpr(alpha, precision)})`;
+}
+
+/** A `none` channel can't enter math — emit the plain color untouched (valid CSS, no transform). */
+function anyNone(args: OklchArgs): boolean {
+  return isNone(args.L) || isNone(args.C) || isNone(args.H) || (args.alpha !== null && isNone(args.alpha));
 }
 
 /* ---------------------------------------------------------------- H-K stage */
@@ -115,7 +121,7 @@ function clampChroma(L: Comp, C: Comp, H: Comp, opts: LowerOptions): Comp {
       // ① exact: a single baked constant
       const m = Math.min(chromaCap, gamut.maxChroma(L.value, H.value));
       return C.kind === "static"
-        ? { kind: "static", value: Math.min(m, C.value) }
+        ? { kind: "static", value: Math.min(m, Math.max(0, C.value)) }
         : { kind: "dynamic", expr: `min(${fmt(m, precision)}, ${asExpr(C, precision)})` };
     }
     // ② per-hue cusp wrap — the min() of the two cusp-anchored lines IS the triangle (no trig)
@@ -149,18 +155,21 @@ function clampChroma(L: Comp, C: Comp, H: Comp, opts: LowerOptions): Comp {
 
 /** `oklch-safe(...)`: correct gamut clamp only — "oklch but better". */
 export function lowerSafe(args: OklchArgs, opts: LowerOptions): LowerResult {
+  if (anyNone(args)) return { css: emit(args.L, args.C, args.H, args.alpha, opts.precision), usedRuntimeTrig: false };
   const C = clampChroma(args.L, args.C, args.H, opts);
   return { css: emit(args.L, C, args.H, args.alpha, opts.precision), usedRuntimeTrig: false };
 }
 
 /** `oklch-hk(...)`: Helmholtz-Kohlrausch compensation only — caller owns the gamut. */
 export function lowerHk(args: OklchArgs, opts: LowerOptions): LowerResult {
+  if (anyNone(args)) return { css: emit(args.L, args.C, args.H, args.alpha, opts.precision), usedRuntimeTrig: false };
   const { L, usedRuntimeTrig } = hkAdjustL(args, opts);
   return { css: emit(L, args.C, args.H, args.alpha, opts.precision), usedRuntimeTrig };
 }
 
 /** `oklch-safe-hk(...)`: H-K compensation, then correct gamut clamp. */
 export function lowerSafeHk(args: OklchArgs, opts: LowerOptions): LowerResult {
+  if (anyNone(args)) return { css: emit(args.L, args.C, args.H, args.alpha, opts.precision), usedRuntimeTrig: false };
   const { L, usedRuntimeTrig } = hkAdjustL(args, opts);
   const C = clampChroma(L, args.C, args.H, opts);
   return { css: emit(L, C, args.H, args.alpha, opts.precision), usedRuntimeTrig };

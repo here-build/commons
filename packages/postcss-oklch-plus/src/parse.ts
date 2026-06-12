@@ -30,15 +30,34 @@ function parseNumber(raw: string, percentBase: number): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-function compFromNode(node: PNode, percentBase: number): Comp {
+/** Parse a hue literal, accepting angle units (deg/grad/rad/turn) → degrees. */
+function parseHue(raw: string): number | null {
+  const m = /^(-?[\d.]+(?:e-?\d+)?)(deg|grad|rad|turn)?$/i.exec(raw);
+  if (!m) return null;
+  const n = Number(m[1]);
+  if (!Number.isFinite(n)) return null;
+  switch ((m[2] ?? "").toLowerCase()) {
+    case "grad": return n * 0.9;
+    case "rad": return (n * 180) / Math.PI;
+    case "turn": return n * 360;
+    default: return n; // deg or unitless
+  }
+}
+
+function compFromNode(node: PNode, percentBase: number, isHue = false): Comp {
   if (node.type === "word") {
-    const num = parseNumber(node.value, percentBase);
+    const num = isHue ? parseHue(node.value) : parseNumber(node.value, percentBase);
     if (num !== null) return { kind: "static", value: num };
     // keyword (`none`) or anything non-numeric → carry through untouched
     return { kind: "dynamic", expr: node.value };
   }
   // function (calc/var/min/clamp/env/…) or string → dynamic
   return { kind: "dynamic", expr: valueParser.stringify(node) };
+}
+
+/** True when a component is the CSS `none` keyword (legal in oklch() but not inside math). */
+export function isNone(c: Comp): boolean {
+  return c.kind === "dynamic" && c.expr.trim().toLowerCase() === "none";
 }
 
 /**
@@ -62,7 +81,7 @@ export function parseOklchArgs(nodes: PNode[]): OklchArgs | null {
   return {
     L: compFromNode(l, 1),
     C: compFromNode(c, 0.4),
-    H: compFromNode(h, 1),
+    H: compFromNode(h, 1, true),
     alpha: alpha.length === 1 ? compFromNode(alpha[0] as PNode, 1) : null,
   };
 }
