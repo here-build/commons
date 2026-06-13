@@ -96,11 +96,18 @@ const rows = SEED.map((s) => {
 
 // ---- Darcula editor chrome ----
 const CHROME = {
-  bg: "#2B2B2B",
+  // The editor paints its OWN ground — and it must. Every syntax tier's apparent-
+  // lightness, plus the active-line / selection fills, is leveled against the backdrop
+  // tokens are viewed on; a transparent canvas keeps the contrast math but discards the
+  // ground it was solved against, so the fills float on whatever the host paints and the
+  // leveling reads wrong. Background and foreground contrast are ONE entity — they ship
+  // together. Ground is a near-black neutral (oklch L=0.2, chroma 0); shipped as a static
+  // color literal, so no runtime calc.
+  bg: "oklch(0.2 0 211)",
   fg: "#A9B7C6",
   caret: "#BBBBBB",
   selection: "#214283",
-  gutterBg: "#313335",
+  gutterBg: "oklch(0.2 0 211)",
   gutterFg: "#606366",
   activeLine: "#323232",
   activeGutter: "#323232",
@@ -154,7 +161,7 @@ import { writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 const here = dirname(fileURLToPath(import.meta.url));
-const target = join(here, "..", "src", "languages", "theme-darcula.ts");
+const target = join(here, "..", "src", "theme-darcula.ts");
 writeFileSync(target, out);
 console.log("baked ->", target, "\n");
 console.log("tier".padEnd(14), "h".padStart(4), "C".padStart(6), "L".padStart(6), "  color   tags");

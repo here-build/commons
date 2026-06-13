@@ -33,14 +33,14 @@ const highlightStyle = HighlightStyle.define([
 
 const chrome = EditorView.theme(
   {
-    "&": { color: "#A9B7C6", backgroundColor: "#2B2B2B" },
+    "&": { color: "#A9B7C6", backgroundColor: "oklch(0.2 0 211)" },
     ".cm-content": { caretColor: "#BBBBBB" },
     "&.cm-focused .cm-cursor": { borderLeftColor: "#BBBBBB" },
     "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection": {
       backgroundColor: "#214283",
     },
     ".cm-activeLine": { backgroundColor: "#323232" },
-    ".cm-gutters": { backgroundColor: "#313335", color: "#606366", border: "none" },
+    ".cm-gutters": { backgroundColor: "oklch(0.2 0 211)", color: "#606366", border: "none" },
     ".cm-activeLineGutter": { backgroundColor: "#323232" },
   },
   { dark: true },
