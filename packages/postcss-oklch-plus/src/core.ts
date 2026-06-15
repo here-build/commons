@@ -1,6 +1,6 @@
 /**
  * Core perceptual color math, ported verbatim from here.build's Delta design system
- * (`foundations/delta/delta-css/src/foundation.css`). Pure, dependency-free, and shared
+ * (`second-foundation/delta-css/src/foundation.css`). Pure, dependency-free, and shared
  * by every consumer (the PostCSS plugin here, plus the planned Houdini worklet + playground).
  *
  * Two recipes:

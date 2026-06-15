@@ -9,7 +9,7 @@
  * (no live calc() => no CSSOM stutter, unlike Delta's reactive surfaces).
  *
  * H-K model: docs/thinking/raw-data/design-science/helmholtz-kohlrausch-models.md
- * Source formula: foundations/delta/delta-css/src/foundation.css:238-243
+ * Source formula: second-foundation/delta-css/src/foundation.css:238-243
  *
  *   apparent_L = L - 0.14 * C * hue_factor(h)
  *   => to hit a target apparent_L on a tier:  L = target + 0.14 * C * hue_factor(h)
