@@ -33,10 +33,10 @@ export class Button {
     return 'Button';
   }
 
-  [Symbol.toSExpr]({ keyword, expr }) {
+  [Symbol.toSExpr]({ keyword }) {
     return [
-      expr('label', this.label),
-      ...(this.disabled ? [keyword('disabled')] : [])
+      keyword('label'), this.label,
+      keyword('disabled'), this.disabled
     ];
   }
 }
