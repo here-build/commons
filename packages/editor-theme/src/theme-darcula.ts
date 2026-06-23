@@ -2,7 +2,7 @@
 // "Compensated Darcula": JetBrains' Darcula hues, lightness re-solved through Delta's
 // two-lobe Helmholtz-Kohlrausch apparent-lightness model so every salience tier reads
 // level. Baked to static hex (zero runtime calc). Re-bake: `node scripts/bake-darcula.mjs`.
-// H-K model: docs/thinking/raw-data/design-science/helmholtz-kohlrausch-models.md
+// H-K model: here.build/docs/thinking/raw-data/design-science/helmholtz-kohlrausch-models.md
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import type { Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
