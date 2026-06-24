@@ -29,6 +29,7 @@
     "build": "tsc -p tsconfig.json",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
+    "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {
@@ -37,7 +38,8 @@
     "@types/node": "24.0.0",
     "eslint": "9.39.2",
     "mobx": "6.15.0",
-    "typescript": "6.0.2"
+    "typescript": "6.0.2",
+    "vitest": "4.1.0"
   },
   "peerDependencies": {
     "mobx": "^6.15.0"
