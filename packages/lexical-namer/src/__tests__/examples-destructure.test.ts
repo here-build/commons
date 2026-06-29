@@ -272,9 +272,7 @@ describe("D4: destructure shape blocked → falls to non-destructure tuple", () 
                   },
                   {
                     priority: 80,
-                    bindings: [
-                      { subKey: "state:open:tuple", candidates: { 100: "stateOpen", 80: "stateOpenResult" } },
-                    ],
+                    bindings: [{ subKey: "state:open:tuple", candidates: { 100: "stateOpen", 80: "stateOpenResult" } }],
                     facets: {
                       read: { kind: "binding", ref: "state:open:tuple", access: "[0]" },
                       setter: { kind: "binding", ref: "state:open:tuple", access: "[1]" },
@@ -402,9 +400,7 @@ describe("D6: mobx useLocalObservable realization (member-access facets)", () =>
                 shapes: [
                   {
                     priority: 100,
-                    bindings: [
-                      { subKey: "state:open:store", candidates: { 100: "store", 80: "openStore" } },
-                    ],
+                    bindings: [{ subKey: "state:open:store", candidates: { 100: "store", 80: "openStore" } }],
                     facets: {
                       read: { kind: "binding", ref: "state:open:store", access: ".open" },
                       setter: { kind: "binding", ref: "state:open:store", access: ".toggle" },
@@ -466,9 +462,7 @@ describe("D7: query result with destructure (rename data → users)", () => {
                   },
                   {
                     priority: 80, // single-binding fallback
-                    bindings: [
-                      { subKey: "query:users:result", candidates: { 100: "queryUsers" } },
-                    ],
+                    bindings: [{ subKey: "query:users:result", candidates: { 100: "queryUsers" } }],
                     facets: {
                       data: { kind: "binding", ref: "query:users:result", access: ".data" },
                       isLoading: { kind: "binding", ref: "query:users:result", access: ".isLoading" },
@@ -589,14 +583,7 @@ describe("D9: full-feature component — idiomatic React shape end-to-end", () =
     const result = resolveLexicalNames(
       {
         id: "module",
-        reservations: [
-          "React",
-          "useState",
-          "useCallback",
-          "useQuery",
-          "useMutation",
-          "UserManager",
-        ],
+        reservations: ["React", "useState", "useCallback", "useQuery", "useMutation", "UserManager"],
         entities: [
           { key: "import:fetchUsers", candidates: { 100: "fetchUsers" } },
           { key: "import:createUserApi", candidates: { 100: "createUserApi" } },
@@ -628,9 +615,7 @@ describe("D9: full-feature component — idiomatic React shape end-to-end", () =
                 shapes: [
                   {
                     priority: 100,
-                    bindings: [
-                      { subKey: "mutation:createUser:result", candidates: { 100: "createUser" } },
-                    ],
+                    bindings: [{ subKey: "mutation:createUser:result", candidates: { 100: "createUser" } }],
                     facets: {
                       mutate: { kind: "binding", ref: "mutation:createUser:result", access: ".mutate" },
                     },
@@ -686,9 +671,7 @@ describe("D9: full-feature component — idiomatic React shape end-to-end", () =
     // Component scope — rich entities
     expect(result.resolutions.get("query:users")?.facetExpressions.get("data")).toBe("users");
     expect(result.resolutions.get("query:users")?.facetExpressions.get("isLoading")).toBe("isLoading");
-    expect(result.resolutions.get("mutation:createUser")?.facetExpressions.get("mutate")).toBe(
-      "createUser.mutate",
-    );
+    expect(result.resolutions.get("mutation:createUser")?.facetExpressions.get("mutate")).toBe("createUser.mutate");
     expect(result.resolutions.get("state:name")?.facetExpressions.get("read")).toBe("name");
     expect(result.resolutions.get("state:name")?.facetExpressions.get("setter")).toBe("setName");
     expect(result.resolutions.get("state:error")?.facetExpressions.get("read")).toBe("error");

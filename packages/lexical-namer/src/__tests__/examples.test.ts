@@ -220,9 +220,7 @@ describe("ex6: imported component aliased to avoid self-name collision", () => {
           candidates: { 100: "Foo", 80: "FooComponent", 60: "FooImported" },
         },
       ],
-      children: [
-        { id: "component:Foo", reservations: ["props"] },
-      ],
+      children: [{ id: "component:Foo", reservations: ["props"] }],
     });
     expect(r.get("import:Foo")).toBe("FooComponent");
   });
@@ -624,14 +622,7 @@ describe("ex12: full-feature component (no destructure throughout)", () => {
     const result = resolveLexicalNames(
       {
         id: "module",
-        reservations: [
-          "React",
-          "useState",
-          "useCallback",
-          "useQuery",
-          "useMutation",
-          "UserManager",
-        ],
+        reservations: ["React", "useState", "useCallback", "useQuery", "useMutation", "UserManager"],
         entities: [
           { key: "import:fetchUsers", candidates: { 100: "fetchUsers" } },
           { key: "import:createUser", candidates: { 100: "createUser" } },

@@ -52,16 +52,11 @@ const corpus: Array<{ name: string; make: () => E[] }> = [
   },
   {
     name: "five tied deep",
-    make: () =>
-      Array.from({ length: 5 }, (_, k) => e(`n${k}`, c("shared", 100), c(`fallback-${k}`, 5))),
+    make: () => Array.from({ length: 5 }, (_, k) => e(`n${k}`, c("shared", 100), c(`fallback-${k}`, 5))),
   },
   {
     name: "priority cascade",
-    make: () => [
-      e("a", c("x", 100)),
-      e("b", c("x", 50), c("y", 30), c("z", 10)),
-      e("c", c("y", 80)),
-    ],
+    make: () => [e("a", c("x", 100)), e("b", c("x", 50), c("y", 30), c("z", 10)), e("c", c("y", 80))],
   },
   {
     name: "reserved blocks primary",
@@ -77,28 +72,17 @@ const corpus: Array<{ name: string; make: () => E[] }> = [
   },
   {
     name: "interleaved importances",
-    make: () => [
-      e("a", c("x", 100), c("y", 50)),
-      e("b", c("y", 100), c("x", 50)),
-    ],
+    make: () => [e("a", c("x", 100), c("y", 50)), e("b", c("y", 100), c("x", 50))],
   },
   {
     name: "all want same name at descending importance (no ties)",
-    make: () => [
-      e("a", c("x", 100)),
-      e("b", c("x", 90), c("b-f", 5)),
-      e("c", c("x", 80), c("c-f", 5)),
-    ],
+    make: () => [e("a", c("x", 100)), e("b", c("x", 90), c("b-f", 5)), e("c", c("x", 80), c("c-f", 5))],
   },
   {
     name: "chained tie-and-fallback",
     make: () =>
       // a,b tie at 100 on hero; c wants hero at 50 → blocked → falls back.
-      [
-        e("a", c("hero", 100)),
-        e("b", c("hero", 100)),
-        e("c", c("hero", 50), c("c-last", 5)),
-      ],
+      [e("a", c("hero", 100)), e("b", c("hero", 100)), e("c", c("hero", 50), c("c-last", 5))],
   },
   {
     name: "many entities with unique preferences",
