@@ -68,7 +68,7 @@ allowing to make certain entities more expressive and compact.
 ### In environments that need serialization (MCP server):
 
 ```typescript
-import { toSExprString } from '@here.build/arrival';
+import { toSExprString } from '@here.build/arrival-serializer';
 import { Button } from 'shared-models';
 
 const btn = new Button('Click me', false);
