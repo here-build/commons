@@ -1,4 +1,5 @@
 import { DefaultedMap } from "./defaulted-collections.js";
+import * as ordinal from "./ordinal/index.js";
 
 /**
  * A `Map` whose keys compare **structurally**, not by reference — including when
@@ -52,42 +53,9 @@ function validateKeyElement(item: unknown): void {
   throw new TypeError(`Unsupported PathMap key element: ${Object.prototype.toString.call(item)}`);
 }
 
-// ── Ordinal sort: a stable order for set members ─────────────────────────────
-//
-// Set keys have no inherent order, but the trie needs ONE canonical path. We
-// sort objects by a monotonic ordinal assigned the first time we see them (a
-// WeakMap, so it never leaks). Primitives sort by type then value. This is
-// process-local and never serialized — it only has to be *consistent*, not
-// meaningful.
-
-let nextOrdinal = 0;
-const singletonOrdinals = new WeakMap<object, number>();
-function ordinalOf(o: object): number {
-  let id = singletonOrdinals.get(o);
-  if (id === undefined) {
-    id = nextOrdinal++;
-    singletonOrdinals.set(o, id);
-  }
-  return id;
-}
-
-function localSort(a: PathMapKeyElement, b: PathMapKeyElement): number {
-  const aIsObj = typeof a === "object" && a !== null;
-  const bIsObj = typeof b === "object" && b !== null;
-
-  if (aIsObj && !bIsObj) return -1;
-  if (!aIsObj && bIsObj) return 1;
-
-  if (aIsObj && bIsObj) {
-    return ordinalOf(a) - ordinalOf(b);
-  }
-
-  const aType = a === null ? "null" : typeof a;
-  const bType = b === null ? "null" : typeof b;
-  if (aType !== bType) return aType.localeCompare(bType);
-
-  return String(a).localeCompare(String(b));
-}
+// Set keys have no inherent order, but the trie needs ONE canonical path, so set
+// members are sorted by `ordinal.sort` (objects by their process-local ordinal,
+// primitives by type then value — see ./ordinal).
 
 // ── Trie ─────────────────────────────────────────────────────────────────────
 
@@ -128,7 +96,7 @@ export class PathMap<K extends PathMapKey, V> implements Map<K, V> {
     if (resolved === undefined) {
       let canonicalKey: K;
       if (key instanceof Set) {
-        canonicalKey = new Set([...key].sort(localSort)) as K;
+        canonicalKey = new Set([...key].sort(ordinal.sort)) as K;
       } else if (Array.isArray(key)) {
         canonicalKey = Object.freeze([...key]) as K & ReadonlyArray<K[keyof K]>;
       } else {
@@ -152,7 +120,7 @@ export class PathMap<K extends PathMapKey, V> implements Map<K, V> {
       this._size++;
       let canonicalKey: K;
       if (key instanceof Set) {
-        canonicalKey = new Set([...key].sort(localSort)) as K;
+        canonicalKey = new Set([...key].sort(ordinal.sort)) as K;
       } else if (Array.isArray(key)) {
         canonicalKey = Object.freeze([...key]) as K & ReadonlyArray<K[keyof K]>;
       } else {
@@ -280,7 +248,7 @@ export class PathMap<K extends PathMapKey, V> implements Map<K, V> {
    */
   private keyToPath(key: K): PathMapKeyElement[] {
     if (key instanceof Set) {
-      const elements = [...key].sort(localSort);
+      const elements = [...key].sort(ordinal.sort);
       for (const el of elements) validateKeyElement(el);
       return elements;
     }

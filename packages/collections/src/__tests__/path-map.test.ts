@@ -88,6 +88,23 @@ describe("PathMap", () => {
 
       expect([map.size, map.get(new Set(["a", "b"])), map.get(new Set(["a", "c"]))]).to.have.ordered.members([2, 1, 2]);
     });
+
+    it("should treat Sets of objects with same members as equal regardless of order (ordinal-sorted)", () => {
+      const map = new PathMap<Set<object>, number>();
+      const a = {};
+      const b = {};
+      const c = {};
+
+      map.set(new Set([a, b, c]), 1);
+
+      // Different insertion order, same canonical form — exercises the
+      // object branch of the trie's set-key sort (`ordinal.id`-based).
+      expect([
+        map.get(new Set([c, b, a])),
+        map.get(new Set([b, a, c])),
+        map.has(new Set([a, c, b])),
+      ]).to.have.ordered.members([1, 1, true]);
+    });
   });
 
   describe("Array key ordering", () => {
