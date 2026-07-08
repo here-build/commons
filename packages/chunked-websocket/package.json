@@ -1,7 +1,6 @@
 {
   "name": "@here.build/chunked-websocket",
   "version": "0.1.0",
-  "private": true,
   "description": "Transparent WebSocket message chunking — a transport-layer wrapper that splits >1 MiB messages into reassemblable chunks so workerd accepts them. Application code (Yjs, comments, awareness, …) sees a normal WebSocket. Adapted from partykit's y-partykit/src/chunking.ts.",
   "license": "FSL-1.1-MIT",
   "author": "here.build",
