@@ -7,7 +7,8 @@
  * The protocol does not inspect message content — purely a transport
  * concern.
  *
- * Adapted from `partykit/y-partykit/src/chunking.ts` (FSL/MIT, Cloudflare).
+ * Adapted from `partykit/y-partykit/src/chunking.ts` (MIT, © 2023
+ * PartyKit, Inc. — see THIRD-PARTY-NOTICES.md).
  * Behaviour preserved verbatim; protocol (sentinel string + JSON markers)
  * is binary-compatible with partykit's, so a here.build server can talk
  * to a partykit-style client and vice-versa during a transition.
