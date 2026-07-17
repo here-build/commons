@@ -68,7 +68,7 @@ allowing to make certain entities more expressive and compact.
 ### In environments that need serialization (MCP server):
 
 ```typescript
-import { toSExprString } from '@here.build/arrival-serializer';
+import { toSExprString } from '@inhuman.tools/arrival-serializer';
 import { Button } from 'shared-models';
 
 const btn = new Button('Click me', false);
@@ -85,7 +85,7 @@ import { Button } from 'shared-models';
 // No arrival runtime bundled, just the class
 ```
 
-The protocol is defined once in the shared library. Serialization happens only where `@here.build/arrival` is imported.
+The protocol is defined once in the shared library. Serialization happens only where `@inhuman.tools/arrival` is imported.
 
 Package use is idempotent - multiple sources may include it, yet `Symbol.SExpr` and `Symbol.toSExpr` are defined in
 stable, failsafe way.
