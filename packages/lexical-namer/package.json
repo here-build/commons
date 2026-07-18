@@ -1,6 +1,6 @@
 {
   "name": "@here.build/lexical-namer",
-  "version": "0.1.0",
+  "version": "0.9.0",
   "description": "Lexical-scope-aware name assignment. Takes a scope tree of entities with prioritized name candidates, returns a non-colliding assignment that respects parent-chain visibility, sibling independence, and symmetric tie resolution.",
   "license": "FSL-1.1-MIT",
   "author": "here.build",
@@ -44,9 +44,16 @@
     "typescript": "6.0.2",
     "vitest": "4.1.0"
   },
+  "homepage": "https://github.com/here-build/commons#readme",
+  "bugs": {
+    "url": "https://github.com/here-build/commons/issues"
+  },
   "repository": {
     "type": "git",
-    "url": "https://github.com/here-build/foundation.git",
-    "directory": "common/lexical-namer"
+    "url": "https://github.com/here-build/commons.git",
+    "directory": "packages/lexical-namer"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

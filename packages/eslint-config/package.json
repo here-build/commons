@@ -1,8 +1,11 @@
 {
   "name": "@here.build/eslint-configs",
   "description": "Shared ESLint flat configs for Here.build packages (nodejs, browser, shared, cloudflare, landing, reactConfig)",
-  "version": "0.0.1",
+  "version": "0.9.0",
   "author": "here.build",
+  "publishConfig": {
+    "access": "public"
+  },
   "license": "FSL-1.1-MIT",
   "dependencies": {
     "@eslint-community/eslint-plugin-eslint-comments": "4.6.0",
@@ -38,9 +41,13 @@
     "eslint": "^9.39.2"
   },
   "type": "module",
+  "homepage": "https://github.com/here-build/commons#readme",
+  "bugs": {
+    "url": "https://github.com/here-build/commons/issues"
+  },
   "repository": {
     "type": "git",
-    "url": "https://github.com/here-build/foundation.git",
-    "directory": "common/eslint-config"
+    "url": "https://github.com/here-build/commons.git",
+    "directory": "packages/eslint-config"
   }
 }

@@ -1,9 +1,21 @@
 {
   "name": "@here.build/chunked-websocket",
-  "version": "0.1.0",
+  "version": "0.9.0",
   "description": "Transparent WebSocket message chunking — a transport-layer wrapper that splits >1 MiB messages into reassemblable chunks so workerd accepts them. Application code (Yjs, comments, awareness, …) sees a normal WebSocket. Adapted from partykit's y-partykit/src/chunking.ts.",
   "license": "FSL-1.1-MIT",
   "author": "here.build",
+  "publishConfig": {
+    "access": "public"
+  },
+  "homepage": "https://github.com/here-build/commons#readme",
+  "bugs": {
+    "url": "https://github.com/here-build/commons/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/here-build/commons.git",
+    "directory": "packages/chunked-websocket"
+  },
   "type": "module",
   "exports": {
     ".": {
@@ -27,7 +39,14 @@
   "files": [
     "dist/**/*",
     "src/**/*",
-    "THIRD-PARTY-NOTICES.md"
+    "THIRD-PARTY-NOTICES.md",
+    "!**/__tests__",
+    "!**/__research__",
+    "!**/__benchmarks__",
+    "!**/__custdev__",
+    "!**/__visual__",
+    "!**/*.test.*",
+    "!**/*.stories.*"
   ],
   "scripts": {
     "clean": "rm -rf dist",
