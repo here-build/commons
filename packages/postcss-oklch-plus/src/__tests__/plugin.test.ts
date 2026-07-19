@@ -117,11 +117,6 @@ describe("oklch-safe-hk (H-K + clamp)", () => {
     expect(out).toContain("sin(");
     expect(out).toContain("var(--h)");
   });
-
-  it("delta model reproduces the legacy (miscalibrated) output for parity", () => {
-    // legacy hk(0.2, 30) = 0.14 * 0.2 * 0.75 = 0.021 → L 0.679
-    expect(value("oklch-safe-hk(0.7 0.2 30)", { model: "delta" })).toBe("oklch(0.679 0.2 30)");
-  });
 });
 
 describe("plugin hygiene", () => {

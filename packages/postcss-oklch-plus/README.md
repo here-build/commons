@@ -49,18 +49,15 @@ import oklchPlus from "@here.build/postcss-oklch-plus";
 export default { plugins: [oklchPlus({ /* options */ })] };
 ```
 
-Options: `model` (`"nayatani"` default | `"delta"`), `lightnessFactor` (H-K sign/scale, default
-`1`), `chromaCap` (default `0.35`), `precision` (default `4`), `gamut` (default `"p3"`), and
-`safeName` / `hkName` / `safeHkName`.
+Options: `lightnessFactor` (H-K sign/scale, default `1`), `chromaCap` (default `0.35`), `precision`
+(default `4`), `gamut` (default `"p3"`), and `safeName` / `hkName` / `safeHkName`.
 
-### The H-K model (`model`)
+### The H-K model
 
-`"nayatani"` (default) is a **3-harmonic Fourier fit (R²=0.98) of Nayatani-1997's VAC hue term
+The H-K compensation is a **3-harmonic Fourier fit (R²=0.98) of Nayatani-1997's VAC hue term
 `q(θ)`** — its perceptual *shape*, evaluated over OKLCH hue at fixed chroma, rescaled to preserve
 Delta's existing compensation budget. (The *shape* is Nayatani; the *magnitude* is inherited Delta
-calibration — `S_uv` and `K_Br` are normalized away.) `"delta"` is here.build's legacy curve, kept
-only for byte-parity — it is **perceptually miscalibrated** (inverts the yellow and magenta peaks;
-anti-correlated with Nayatani, r≈−0.04). Don't use it for new work.
+calibration — `S_uv` and `K_Br` are normalized away.)
 
 ### The clamp tiers (`gamut`)
 
@@ -83,15 +80,15 @@ fades chroma to zero at the white/black poles (killing hue distortion at the ext
 in-gamut output.
 
 The pure math is also exported from `@here.build/postcss-oklch-plus/core`
-(`deltaHueFactor`, `hkCompensation`, `maxChromaBell`, `clampChromaBell`) for non-PostCSS use —
+(`nayataniHueFactor`, `hkCompensation`, `maxChromaBell`, `clampChromaBell`) for non-PostCSS use —
 e.g. a Houdini paint worklet doing the same clamp live in the browser.
 
 ## Honesty notes
 
-- The default H-K model fits the *shape* of Nayatani-1997's VAC hue term `q(θ)` (R²=0.98), at fixed
+- The H-K model fits the *shape* of Nayatani-1997's VAC hue term `q(θ)` (R²=0.98), at fixed
   chroma, re-expressed in OKLCH hue and rescaled to Delta's budget. The magnitude is Delta's, not
   Nayatani's (`S_uv`/`K_Br` dropped). It lowers to six cheap trig terms, or a baked constant for
-  static hue. (The legacy `delta` model is perceptually wrong — see the `model` option.)
+  static hue.
 - The default clamp (`gamut: "p3"`) is the real per-(L,H) gamut boundary via a zero-dep Ottosson
   port, parity-verified against culori (a dev-only oracle). `gamut: "bell"` is **not** a gamut bound
   — it's a stylistic pole-taper + cap that over-admits chroma; it's the dynamic-hue fallback only.

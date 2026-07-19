@@ -1,12 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  nayataniHueFactor,
-  deltaHueFactor,
-  hkCompensation,
-  maxChromaBell,
-  clampChromaBell,
-  DELTA,
-} from "../core.js";
+import { nayataniHueFactor, hkCompensation, maxChromaBell, clampChromaBell } from "../core.js";
 
 describe("nayataniHueFactor (default, corrected)", () => {
   it("is a pure function of hue", () => {
@@ -21,12 +14,6 @@ describe("nayataniHueFactor (default, corrected)", () => {
   });
 });
 
-describe("deltaHueFactor (legacy parity)", () => {
-  it("is preserved unchanged for byte-parity mode", () => {
-    expect(deltaHueFactor(30)).toBeCloseTo(0.75, 2);
-  });
-});
-
 describe("hkCompensation", () => {
   it("is zero at zero chroma (neutral elements get no H-K shift)", () => {
     expect(hkCompensation(0, 30)).toBe(0);
@@ -35,11 +22,6 @@ describe("hkCompensation", () => {
   it("defaults to the corrected Nayatani model", () => {
     // 1 * 0.14 * 0.2 * 0.8428 = 0.0236
     expect(hkCompensation(0.2, 30)).toBeCloseTo(0.0236, 4);
-  });
-
-  it("reproduces the legacy value under the delta model", () => {
-    // 1 * 0.14 * 0.2 * 0.75 = 0.021
-    expect(hkCompensation(0.2, 30, 1, DELTA)).toBeCloseTo(0.021, 4);
   });
 
   it("scales linearly with chroma", () => {

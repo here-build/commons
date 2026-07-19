@@ -11,17 +11,14 @@
  *
  *  2. HELMHOLTZ–KOHLRAUSCH — `hkCompensation` over a `HueModel`. Saturated colors look brighter than
  *     their measured OKLCH L; this derives how much L to *subtract* so a colored element sits level
- *     with a neutral gray at the same L. The default `nayatani` model fits the *shape* of
- *     Nayatani-1997's VAC hue term q(θ) (R²=0.98), at fixed chroma, re-expressed in OKLCH hue and
- *     rescaled to Delta's compensation budget — shape is Nayatani's, magnitude is Delta's (S_uv/K_Br
- *     dropped). (A legacy `delta` model exists for output parity but is miscalibrated — see `HueModel`.)
+ *     with a neutral gray at the same L. The `nayatani` model fits the *shape* of Nayatani-1997's
+ *     VAC hue term q(θ) (R²=0.98), at fixed chroma, re-expressed in OKLCH hue and rescaled to
+ *     Delta's compensation budget — shape is Nayatani's, magnitude is Delta's (S_uv/K_Br dropped).
  *
- * THE LOAD-BEARING FACT: every transcendental (`cos`, `exp`) lives inside `deltaHueFactor`, which
- * is a pure function of HUE alone. That is why a static hue lets the whole H-K term fold to a
- * constant at build time — even when L or C are animated. See `../lower.ts`.
+ * THE LOAD-BEARING FACT: every transcendental (`cos`, `sin`) lives inside `nayataniHueFactor`,
+ * which is a pure function of HUE alone. That is why a static hue lets the whole H-K term fold to
+ * a constant at build time — even when L or C are animated. See `../lower.ts`.
  */
-
-const TAU = Math.PI * 2;
 
 /** Major chroma cap before hue-shift-on-clip becomes visible in P3 (Delta's 0.35). */
 export const DEFAULT_CHROMA_CAP = 0.35;
@@ -59,15 +56,11 @@ export function clampChromaBellCss(LExpr: string, CExpr: string, cap = DEFAULT_C
 
 /**
  * A hue model maps OKLCH hue → the H-K brightness-excess weight, as a pure function of hue. That
- * purity is what lets a static hue bake to a constant (zero runtime trig). Two models:
+ * purity is what lets a static hue bake to a constant (zero runtime trig).
  *
  *   nayatani — a 3-harmonic Fourier fit (R²=0.98) of the *shape* of Nayatani-1997's VAC hue term
- *              q(θ), at fixed chroma, re-expressed in OKLCH hue, rescaled to Delta's budget. THE
- *              DEFAULT — perceptually correct in hue allocation (shape Nayatani's, magnitude Delta's).
- *   delta    — the legacy here.build curve (warm cosine lobe + Gaussian blue bump). Kept ONLY for
- *              byte-parity with current studio output; it is perceptually MISCALIBRATED — it
- *              inverts the yellow and magenta peaks (anti-correlated with Nayatani, r≈−0.04).
- *              Do not choose it for new work.
+ *              q(θ), at fixed chroma, re-expressed in OKLCH hue, rescaled to Delta's budget —
+ *              perceptually correct in hue allocation (shape Nayatani's, magnitude Delta's).
  */
 export interface HueModel {
   /** numeric, build-time */
@@ -105,31 +98,9 @@ export function nayataniHueFactorCss(hueExpr: string): string {
   return `calc(${s})`;
 }
 
-/* --- delta (legacy parity — perceptually miscalibrated; do not use for new work) ------------ */
-export function deltaHueFactor(hueDeg: number): number {
-  const hueNorm = hueDeg / 360;
-  const redYellow = Math.cos((hueNorm * 3 - 1) * TAU) * 0.45 + 0.75;
-  const blueDistance = Math.abs(hueDeg - 255);
-  const blueBump = 0.25 * Math.exp(-((blueDistance / 35) ** 2));
-  return clamp(0.3, redYellow + blueBump, 1.2);
-}
-
-export function deltaHueFactorCss(hueExpr: string): string {
-  const hueNorm = `(${hueExpr} / 360)`;
-  const redYellow = `(cos((${hueNorm} * 3 - 1) * ${TAU}) * 0.45 + 0.75)`;
-  const blueDistance = `max(${hueExpr} - 255, 255 - ${hueExpr})`;
-  const blueBump = `(0.25 * pow(2.71828, -1 * pow((${blueDistance}) / 35, 2)))`;
-  return `clamp(0.3, ${redYellow} + ${blueBump}, 1.2)`;
-}
-
 export const NAYATANI: HueModel = { factor: nayataniHueFactor, factorCss: nayataniHueFactorCss };
-export const DELTA: HueModel = { factor: deltaHueFactor, factorCss: deltaHueFactorCss };
-export const HUE_MODELS: Record<"nayatani" | "delta", HueModel> = {
-  nayatani: NAYATANI,
-  delta: DELTA,
-};
 
-/** H-K lightness compensation (amount to SUBTRACT from L). Defaults to the corrected Nayatani model. */
+/** H-K lightness compensation (amount to SUBTRACT from L). Defaults to the Nayatani model. */
 export function hkCompensation(
   chroma: number,
   hueDeg: number,
