@@ -18,6 +18,8 @@ bases and small, stable primitives that everything else stands on.
 - `arrival-env` — types and protocol for arrival S-expression serialization
   (lives here because both product families need it; it is the floor's only
   arrival-flavored piece).
+- `editor-theme` — hermetic CodeMirror 6 look pack: self-hosted fonts (OFL)
+  and H-K-compensated Darcula chrome for editors in both products. No CDN.
 
 ## Repository shape
 

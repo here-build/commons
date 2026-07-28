@@ -7,13 +7,13 @@
   "publishConfig": {
     "access": "public"
   },
-  "homepage": "https://github.com/here-build/arrival#readme",
+  "homepage": "https://github.com/here-build/commons#readme",
   "bugs": {
-    "url": "https://github.com/here-build/arrival/issues"
+    "url": "https://github.com/here-build/commons/issues"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/here-build/arrival.git",
+    "url": "https://github.com/here-build/commons.git",
     "directory": "packages/editor-theme"
   },
   "type": "module",
