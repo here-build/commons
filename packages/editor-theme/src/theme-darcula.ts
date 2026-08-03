@@ -21,6 +21,8 @@ const highlightStyle = HighlightStyle.define([
   { tag: tags.meta, color: "#9c7e68" }, // differentiate aL≈0.62 h57 -> L0.615
   { tag: [tags.paren, tags.squareBracket], color: "#717171" }, // recede aL≈0.55 h250 -> L0.550
   { tag: tags.brace, color: "#836b5a", fontStyle: "italic" }, // recede aL≈0.55 h57 -> L0.546
+  { tag: tags.special(tags.brace), color: "#717171" }, // recede aL≈0.55 h250 -> L0.550
+  { tag: tags.special(tags.squareBracket), color: "#788797" }, // differentiate aL≈0.62 h250 -> L0.616
   { tag: [tags.compareOperator, tags.logicOperator, tags.controlOperator, tags.arithmeticOperator, tags.operator], color: "#b07344", fontStyle: "italic" }, // differentiate aL≈0.62 h57 -> L0.610
   { tag: tags.processingInstruction, color: "#e4b0ff", fontWeight: "600" }, // anchor aL≈0.85 h314 -> L0.832
   { tag: tags.contentSeparator, color: "#7f6d60" }, // recede aL≈0.55 h57 -> L0.547

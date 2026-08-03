@@ -75,9 +75,13 @@ const SEED = [
   { tags: ["comment", "lineComment", "blockComment"], h: 140, C: 0.0, tier: "recede" }, // gray, receded
   { tags: ["docComment"], h: 140, C: 0.09, tier: "recede" }, // doc-comment green, still receded
   { tags: ["meta"], h: 57, C: 0.05, tier: "differentiate" }, // quote ' ` , ,@ — dim keyword family
-  { tags: ["paren", "squareBracket"], h: 250, C: 0.0, tier: "recede" }, // brackets recede (gray)
+  { tags: ["paren", "squareBracket"], h: 250, C: 0.0, tier: "recede" }, // free list [] + classic parens recede (gray)
   // SWEET superset — marked with a hue in the keyword family + ITALIC = "this is sugar"
-  { tags: ["brace"], h: 57, C: 0.04, tier: "recede", italic: true }, // curly-infix braces, faint sweet tint
+  { tags: ["brace"], h: 57, C: 0.04, tier: "recede", italic: true }, // n-expr curly-infix braces, faint sweet tint
+  // Data dict `{}` — same recede gray as list/paren, NO italic (not sugar-computation)
+  { tags: ["special(brace)"], h: 250, C: 0.0, tier: "recede" },
+  // Tight subscript `xs[0]` — slightly more present than free list (access/member kinship)
+  { tags: ["special(squareBracket)"], h: 250, C: 0.03, tier: "differentiate" },
   { tags: ["compareOperator", "logicOperator", "controlOperator", "arithmeticOperator", "operator"], h: 57, C: 0.1, tier: "differentiate", italic: true }, // == && || =>
   // --- dotprompt ---
   { tags: ["processingInstruction"], h: 314, C: 0.14, tier: "anchor", bold: true }, // {{role}} turn-delimiter — reserved bright anchor
