@@ -2,7 +2,7 @@
  * @here.build/arrival-env
  *
  * Lightweight type definitions and Symbol protocol for Arrival S-expression serialization.
- * This package provides the typing and protocol without the full LIPS runtime.
+ * This package provides the typing and protocol without the full arrival runtime.
  *
  * Simply import this package to get global Symbol.toSExpr and Symbol.SExpr support:
  * ```typescript
