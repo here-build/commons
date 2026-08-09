@@ -23,7 +23,7 @@
     "env/*.json",
     "package.json"
   ],
-  "license": "FSL-1.1-MIT",
+  "license": "MIT",
   "homepage": "https://github.com/here-build/commons#readme",
   "bugs": {
     "url": "https://github.com/here-build/commons/issues"

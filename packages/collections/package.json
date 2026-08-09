@@ -2,7 +2,7 @@
   "name": "@here.build/collections",
   "version": "0.9.0",
   "description": "Collection utilities: DefaultedMap, DefaultedWeakMap, Counter, PathMap, multimaps, and MobX-reactive computed variants",
-  "license": "FSL-1.1-MIT",
+  "license": "MIT",
   "author": "here.build",
   "type": "module",
   "exports": {

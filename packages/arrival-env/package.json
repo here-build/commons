@@ -17,7 +17,7 @@
     "url": "https://github.com/here-build/commons.git",
     "directory": "packages/arrival-env"
   },
-  "license": "FSL-1.1-MIT",
+  "license": "MIT",
   "author": "here.build",
   "publishConfig": {
     "access": "public"

@@ -29,4 +29,4 @@ Available presets (each a flat-config array layering the shared base — `@eslin
 
 ## License
 
-[FSL-1.1-MIT](./LICENSE.md) — Functional Source License 1.1, MIT Future License. Each version converts to MIT two years after its release date.
+[MIT](./LICENSE.md)

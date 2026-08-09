@@ -103,4 +103,4 @@ e.g. a Houdini paint worklet doing the same clamp live in the browser.
 
 ## License
 
-FSL-1.1-MIT
+[MIT](./LICENSE.md)

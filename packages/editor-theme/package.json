@@ -2,7 +2,7 @@
   "name": "@here.build/editor-theme",
   "version": "0.9.0",
   "description": "Hermetic CodeMirror 6 look: self-hosted fonts (JetBrains Mono writing / Monaspace reading) + H-K-compensated Darcula + full overlay/form/mark chrome. No CDN.",
-  "license": "FSL-1.1-MIT",
+  "license": "MIT",
   "author": "here.build",
   "publishConfig": {
     "access": "public"
@@ -37,6 +37,7 @@
     "OFL-JetBrainsMono.txt",
     "LICENSE-Monaspace.txt",
     "README.md",
+    "LICENSE.md",
     "!**/__tests__",
     "!**/__research__",
     "!**/__benchmarks__",

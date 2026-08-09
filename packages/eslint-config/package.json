@@ -6,7 +6,7 @@
   "publishConfig": {
     "access": "public"
   },
-  "license": "FSL-1.1-MIT",
+  "license": "MIT",
   "dependencies": {
     "@eslint-community/eslint-plugin-eslint-comments": "4.6.0",
     "@eslint/js": "9.22.0",

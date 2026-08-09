@@ -29,4 +29,4 @@ pnpm add -D @here.build/tsconfig typescript
 
 ## License
 
-[FSL-1.1-MIT](./LICENSE.md) — Functional Source License 1.1, MIT Future License. Each version converts to MIT two years after its release date.
+[MIT](./LICENSE.md)
