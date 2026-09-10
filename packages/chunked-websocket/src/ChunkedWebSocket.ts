@@ -49,8 +49,6 @@
  * but are now backed by the same addEventListener / dispatch mechanism.
  */
 
-import { TypedEventTarget } from "typescript-event-target";
-
 import { handleChunked, RESET_SENTINEL, sendChunked, type ChunkedReceiveHandler } from "./protocol.js";
 
 
@@ -89,7 +87,7 @@ export type RawWebSocketLike = Pick<
   readonly bufferedAmount?: number;
 };
 
-export class ChunkedWebSocket extends TypedEventTarget<ChunkedWebSocketEventMap> {
+export class ChunkedWebSocket extends EventTarget {
   // WebSocket protocol-spec readyState constants.
   static readonly CONNECTING = 0;
   static readonly OPEN = 1;
@@ -100,11 +98,37 @@ export class ChunkedWebSocket extends TypedEventTarget<ChunkedWebSocketEventMap>
   readonly CLOSING = 2;
   readonly CLOSED = 3;
 
+  addEventListener<K extends keyof ChunkedWebSocketEventMap>(
+    type: K,
+    listener: (this: ChunkedWebSocket, ev: ChunkedWebSocketEventMap[K]) => unknown,
+    options?: boolean | AddEventListenerOptions,
+  ): void;
+  addEventListener(
+    type: string,
+    listener: EventListenerOrEventListenerObject | null,
+    options?: boolean | AddEventListenerOptions,
+  ): void {
+    super.addEventListener(type, listener as EventListener, options);
+  }
+
+  removeEventListener<K extends keyof ChunkedWebSocketEventMap>(
+    type: K,
+    listener: (this: ChunkedWebSocket, ev: ChunkedWebSocketEventMap[K]) => unknown,
+    options?: boolean | EventListenerOptions,
+  ): void;
+  removeEventListener(
+    type: string,
+    listener: EventListenerOrEventListenerObject | null,
+    options?: boolean | EventListenerOptions,
+  ): void {
+    super.removeEventListener(type, listener as EventListener, options);
+  }
+
   private inner: RawWebSocketLike;
 
   // on* properties are implemented as getters/setters that register
   // listeners via the typed EventTarget. This unifies the codepath:
-  // everything is driven by dispatchTypedEvent + addEventListener.
+  // everything is driven by dispatchEvent + addEventListener.
   // Consumers can use either `ws.onmessage = ...` or `addEventListener('message', ...)`.
   private _onopen: ((this: ChunkedWebSocket, ev: Event) => unknown) | null = null;
   private _onclose: ((this: ChunkedWebSocket, ev: CloseEvent | Event) => unknown) | null = null;
@@ -181,10 +205,7 @@ export class ChunkedWebSocket extends TypedEventTarget<ChunkedWebSocketEventMap>
     }
 
     this.chunkHandler = handleChunked((data) => {
-      this.dispatchTypedEvent(
-        "message",
-        new MessageEvent("message", { data: data as ArrayBuffer }),
-      );
+      this.dispatchEvent(new MessageEvent("message", { data: data as ArrayBuffer }));
     });
 
     // Browser-mode wiring: subscribe to native events and forward them.
@@ -194,7 +215,7 @@ export class ChunkedWebSocket extends TypedEventTarget<ChunkedWebSocketEventMap>
       const native = this.inner as WebSocket;
       native.onmessage = (ev) => this.chunkHandler({ data: ev.data as ArrayBuffer | string });
       native.onopen = () => {
-        this.dispatchTypedEvent("open", new Event("open"));
+        this.dispatchEvent(new Event("open"));
       };
       native.onclose = (ev) => {
         // `CloseEvent` is DOM-only; not exposed as a global in
@@ -205,10 +226,10 @@ export class ChunkedWebSocket extends TypedEventTarget<ChunkedWebSocketEventMap>
         // `ev` object delivered to `onclose`.
         const Ctor = globalThis.CloseEvent;
         const closeEv = Ctor ? new Ctor("close", ev) : new Event("close");
-        this.dispatchTypedEvent("close", closeEv as CloseEvent | Event);
+        this.dispatchEvent(closeEv);
       };
       native.onerror = () => {
-        this.dispatchTypedEvent("error", new Event("error"));
+        this.dispatchEvent(new Event("error"));
       };
     }
   }

@@ -38,11 +38,6 @@
     "LICENSE-Monaspace.txt",
     "README.md",
     "LICENSE.md",
-    "!**/__tests__",
-    "!**/__research__",
-    "!**/__benchmarks__",
-    "!**/__custdev__",
-    "!**/__visual__",
     "!**/stories/**",
     "!**/*.test.*",
     "!**/*.stories.*"
@@ -53,28 +48,33 @@
     "storybook": "storybook dev -p 6012",
     "build-storybook": "storybook build"
   },
-  "dependencies": {
-    "@codemirror/commands": "6.10.4",
-    "@codemirror/language": "6.12.3",
-    "@codemirror/search": "6.7.1",
-    "@codemirror/state": "6.7.1",
-    "@codemirror/view": "6.43.0",
-    "@lezer/highlight": "1.2.1"
+  "peerDependencies": {
+    "@codemirror/commands": "^6",
+    "@codemirror/language": "^6",
+    "@codemirror/search": "^6",
+    "@codemirror/state": "^6",
+    "@codemirror/view": "^6",
+    "@lezer/highlight": "^1"
   },
   "devDependencies": {
-    "@codemirror/autocomplete": "6.20.1",
-    "@codemirror/lang-javascript": "6.2.5",
-    "@codemirror/lint": "6.9.5",
+    "@codemirror/autocomplete": "^6.20.3",
+    "@codemirror/commands": "^6.11.0",
+    "@codemirror/lang-javascript": "^6.2.5",
+    "@codemirror/language": "^6.12.4",
+    "@codemirror/lint": "^6.9.7",
+    "@codemirror/search": "^6.7.1",
+    "@codemirror/state": "^6.7.1",
+    "@codemirror/view": "^6.43.9",
     "@here.build/tsconfig": "workspace:^",
-    "@storybook/react": "10.3.3",
-    "@storybook/react-vite": "10.3.3",
-    "@types/react": "19.2.14",
-    "@types/react-dom": "19.2.3",
-    "react": "19.2.0",
-    "react-dom": "19.2.0",
-    "storybook": "10.3.3",
-    "tslib": "2.8.1",
-    "typescript": "6.0.2",
-    "vite": "7.2.7"
+    "@lezer/highlight": "^1.2.3",
+    "@storybook/react": "^10.5.10",
+    "@storybook/react-vite": "^10.5.10",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.5",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "storybook": "^10.5.10",
+    "typescript": "catalog:",
+    "vite": "^7.2.7"
   }
 }

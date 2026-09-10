@@ -14,7 +14,7 @@
 import type { Plugin } from "postcss";
 import valueParser from "postcss-value-parser";
 import { parseOklchArgs } from "./parse.js";
-import { lowerSafe, lowerHk, lowerSafeHk, type LowerOptions, type LowerResult } from "./lower.js";
+import { lowerSafe, lowerHk, lowerSafeHk, type LowerOptions } from "./lower.js";
 import type { OklchArgs } from "./parse.js";
 import { ottossonGamut } from "./gamut-ottosson.js";
 import type { GamutModel } from "./gamut.js";
@@ -33,12 +33,6 @@ export interface PluginOptions {
    * over-permissive vs P3; reserved for the dynamic-hue fallback. Default is `"p3"`.
    */
   gamut?: "bell" | "p3" | "srgb";
-  /** Function name for gamut clamp only. Default "safe" (alias "oklch-safe"). */
-  safeName?: string;
-  /** Function name for H-K compensation only. Default "hk" (alias "oklch-hk"). */
-  hkName?: string;
-  /** Function name for H-K + clamp. Default "safe-hk" (alias "oklch-safe-hk"). */
-  safeHkName?: string;
 }
 
 /** Turn a parsed function node into a verbatim word node holding the lowered CSS. */
@@ -69,15 +63,14 @@ const creator = (options: PluginOptions = {}): Plugin => {
     hue: NAYATANI,
     gamut,
   };
-  const lowerers: Record<string, (args: OklchArgs, o: LowerOptions) => LowerResult> = {
-    [options.safeName ?? "safe"]: lowerSafe,
-    [options.hkName ?? "hk"]: lowerHk,
-    [options.safeHkName ?? "safe-hk"]: lowerSafeHk,
+  const lowerers: Record<string, (args: OklchArgs, o: LowerOptions) => string> = {
+    safe: lowerSafe,
+    "oklch-safe": lowerSafe,
+    hk: lowerHk,
+    "oklch-hk": lowerHk,
+    "safe-hk": lowerSafeHk,
+    "oklch-safe-hk": lowerSafeHk,
   };
-  // back-compat aliases (only when names aren't customized)
-  if (!options.safeName) lowerers["oklch-safe"] = lowerSafe;
-  if (!options.hkName) lowerers["oklch-hk"] = lowerHk;
-  if (!options.safeHkName) lowerers["oklch-safe-hk"] = lowerSafeHk;
   const names = Object.keys(lowerers);
 
   return {
@@ -96,7 +89,7 @@ const creator = (options: PluginOptions = {}): Plugin => {
           decl.warn(result, `${node.value}() expects "L C H [/ A]" — got ${valueParser.stringify(node)}`);
           return false;
         }
-        replaceWithLiteral(node, lower(args, opts).css);
+        replaceWithLiteral(node, lower(args, opts));
         changed = true;
         return false; // don't descend into the replaced literal
       });

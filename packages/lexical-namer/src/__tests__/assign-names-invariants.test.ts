@@ -223,7 +223,7 @@ describe("custom resolveTie / fallbackSuffix (JS-style)", () => {
       entities: [a, b],
       candidatesFor: (x) => x.candidates,
       postfixFor: (x) => x.id,
-      resolveTie: (name, _entity, postfix) => `${name}_${postfix}`,
+      resolveTie: (name, postfix) => `${name}_${postfix}`,
     });
     expect(assignments.get(a)).toBe("foo_a");
     expect(assignments.get(b)).toBe("foo_b");

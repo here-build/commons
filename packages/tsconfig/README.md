@@ -25,7 +25,7 @@ pnpm add -D @here.build/tsconfig typescript
   - `purpose/lib` — NodeNext libraries that emit declarations.
   - `purpose/app` — bundler/ESNext applications.
 - **env** (target + lib):
-  - `env/node`, `env/cf` (Cloudflare Workers), `env/browser`, `env/browser-widespread` (ES2022), `env/consumer` (ES2017).
+  - `env/node` (also exported as `env/cf`), `env/browser`, `env/browser-widespread` (ES2022), `env/consumer` (ES2017).
 
 ## License
 

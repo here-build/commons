@@ -2,7 +2,6 @@ import eslint from "@eslint/js";
 import prettierRecommended from "eslint-plugin-prettier/recommended";
 import compat from "eslint-plugin-compat";
 import importX from "eslint-plugin-import-x";
-import jest from "eslint-plugin-jest";
 import noSecrets from "eslint-plugin-no-secrets";
 import promise from "eslint-plugin-promise";
 import react from "eslint-plugin-react";
@@ -201,32 +200,6 @@ const baseConfig = [
           },
         },
       ],
-    },
-  },
-  {
-    // update this to match your test files
-    files: [
-      "**/*.spec.ts",
-      "**/*.spec.tsx",
-      "**/*-spec.ts",
-      "**/*-spec.tsx",
-      "**/*.test.js",
-      "**/*.test.jsx",
-      "**/*.test.ts",
-      "**/*.test.tsx",
-      "**/test/**/*",
-      "**/__mocks__/**/*",
-    ],
-    plugins: { jest: jest },
-    languageOptions: {
-      globals: jest.environments.globals.globals,
-    },
-    rules: {
-      "jest/no-disabled-tests": "warn",
-      "jest/no-focused-tests": "error",
-      "jest/no-identical-title": "error",
-      "jest/prefer-to-have-length": "warn",
-      "jest/valid-expect": "error",
     },
   },
   prettierRecommended,

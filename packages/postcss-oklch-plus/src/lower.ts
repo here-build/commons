@@ -39,12 +39,6 @@ export interface LowerOptions {
   gamut: GamutModel | null;
 }
 
-export interface LowerResult {
-  css: string;
-  /** true only when hue was dynamic and we had to emit live trig. */
-  usedRuntimeTrig: boolean;
-}
-
 function fmt(n: number, precision: number): string {
   return String(Number(n.toFixed(precision)));
 }
@@ -65,8 +59,8 @@ function anyNone(args: OklchArgs): boolean {
 
 /* ---------------------------------------------------------------- H-K stage */
 
-/** Subtract the H-K compensation from L. Returns the adjusted L and whether live trig was needed. */
-function hkAdjustL(args: OklchArgs, opts: LowerOptions): { L: Comp; usedRuntimeTrig: boolean } {
+/** Subtract the H-K compensation from L. */
+function hkAdjustL(args: OklchArgs, opts: LowerOptions): Comp {
   const { lightnessFactor, precision } = opts;
   const k = lightnessFactor * HK_K;
   const Lbase = asExpr(args.L, precision);
@@ -77,27 +71,19 @@ function hkAdjustL(args: OklchArgs, opts: LowerOptions): { L: Comp; usedRuntimeT
     if (args.C.kind === "static") {
       // hue + chroma static → H-K is a single constant
       const hk = k * args.C.value * hf;
-      const L: Comp =
-        args.L.kind === "static"
-          ? { kind: "static", value: args.L.value - hk }
-          : { kind: "dynamic", expr: `calc(${Lbase} - ${fmt(hk, precision)})` };
-      return { L, usedRuntimeTrig: false };
+      return args.L.kind === "static"
+        ? { kind: "static", value: args.L.value - hk }
+        : { kind: "dynamic", expr: `calc(${Lbase} - ${fmt(hk, precision)})` };
     }
 
     // hue static, chroma live → H-K is linear in C (coefficient folded), still no trig
     const coef = fmt(k * hf, precision);
-    return {
-      L: { kind: "dynamic", expr: `calc(${Lbase} - ${coef} * ${asExpr(args.C, precision)})` },
-      usedRuntimeTrig: false,
-    };
+    return { kind: "dynamic", expr: `calc(${Lbase} - ${coef} * ${asExpr(args.C, precision)})` };
   }
 
   // hue dynamic → pay live trig (the hue-model formula, evaluated at runtime on a lowered leaf)
   const hkExpr = `calc(${fmt(k, precision)} * ${asExpr(args.C, precision)} * ${opts.hue.factorCss(asExpr(args.H, precision))})`;
-  return {
-    L: { kind: "dynamic", expr: `calc(${Lbase} - ${hkExpr})` },
-    usedRuntimeTrig: true,
-  };
+  return { kind: "dynamic", expr: `calc(${Lbase} - ${hkExpr})` };
 }
 
 /* -------------------------------------------------------------- clamp stage */
@@ -154,23 +140,20 @@ function clampChroma(L: Comp, C: Comp, H: Comp, opts: LowerOptions): Comp {
 /* ------------------------------------------------------------ public lowers */
 
 /** `oklch-safe(...)`: correct gamut clamp only — "oklch but better". */
-export function lowerSafe(args: OklchArgs, opts: LowerOptions): LowerResult {
-  if (anyNone(args)) return { css: emit(args.L, args.C, args.H, args.alpha, opts.precision), usedRuntimeTrig: false };
-  const C = clampChroma(args.L, args.C, args.H, opts);
-  return { css: emit(args.L, C, args.H, args.alpha, opts.precision), usedRuntimeTrig: false };
+export function lowerSafe(args: OklchArgs, opts: LowerOptions): string {
+  if (anyNone(args)) return emit(args.L, args.C, args.H, args.alpha, opts.precision);
+  return emit(args.L, clampChroma(args.L, args.C, args.H, opts), args.H, args.alpha, opts.precision);
 }
 
 /** `oklch-hk(...)`: Helmholtz-Kohlrausch compensation only — caller owns the gamut. */
-export function lowerHk(args: OklchArgs, opts: LowerOptions): LowerResult {
-  if (anyNone(args)) return { css: emit(args.L, args.C, args.H, args.alpha, opts.precision), usedRuntimeTrig: false };
-  const { L, usedRuntimeTrig } = hkAdjustL(args, opts);
-  return { css: emit(L, args.C, args.H, args.alpha, opts.precision), usedRuntimeTrig };
+export function lowerHk(args: OklchArgs, opts: LowerOptions): string {
+  if (anyNone(args)) return emit(args.L, args.C, args.H, args.alpha, opts.precision);
+  return emit(hkAdjustL(args, opts), args.C, args.H, args.alpha, opts.precision);
 }
 
 /** `oklch-safe-hk(...)`: H-K compensation, then correct gamut clamp. */
-export function lowerSafeHk(args: OklchArgs, opts: LowerOptions): LowerResult {
-  if (anyNone(args)) return { css: emit(args.L, args.C, args.H, args.alpha, opts.precision), usedRuntimeTrig: false };
-  const { L, usedRuntimeTrig } = hkAdjustL(args, opts);
-  const C = clampChroma(L, args.C, args.H, opts);
-  return { css: emit(L, C, args.H, args.alpha, opts.precision), usedRuntimeTrig };
+export function lowerSafeHk(args: OklchArgs, opts: LowerOptions): string {
+  if (anyNone(args)) return emit(args.L, args.C, args.H, args.alpha, opts.precision);
+  const L = hkAdjustL(args, opts);
+  return emit(L, clampChroma(L, args.C, args.H, opts), args.H, args.alpha, opts.precision);
 }

@@ -9,13 +9,11 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
-      "require": "./dist/index.js",
       "default": "./dist/index.js"
     },
     "./mobx": {
       "types": "./dist/mobx.d.ts",
       "import": "./dist/mobx.js",
-      "require": "./dist/mobx.js",
       "default": "./dist/mobx.js"
     }
   },
@@ -25,10 +23,6 @@
     "dist",
     "src",
     "!**/__tests__",
-    "!**/__research__",
-    "!**/__benchmarks__",
-    "!**/__custdev__",
-    "!**/__visual__",
     "!**/*.test.*",
     "!**/*.stories.*"
   ],
@@ -42,11 +36,11 @@
   "devDependencies": {
     "@here.build/eslint-configs": "workspace:^",
     "@here.build/tsconfig": "workspace:^",
-    "@types/node": "24.0.0",
-    "eslint": "9.39.2",
-    "mobx": "6.15.0",
-    "typescript": "6.0.2",
-    "vitest": "4.1.0"
+    "@types/node": "catalog:",
+    "eslint": "catalog:",
+    "mobx": "^6.16.1",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   },
   "peerDependencies": {
     "mobx": "^6.15.0"

@@ -26,7 +26,9 @@
  * prioritized candidate ladders; this module owns the resolution.
  */
 
-import invariant from "tiny-invariant";
+function invariant(cond: unknown, msg?: string): asserts cond {
+  if (!cond) throw new Error(msg);
+}
 
 /**
  * One node in the lexical scope tree.
@@ -904,11 +906,9 @@ export interface AssignNamesOptions<E> {
   compareEntities?: (a: E, b: E) => number;
   /**
    * Tie-break form when multiple entities want the same `name` at the same
-   * importance. Default: `${name}-${postfixFor(entity)}`. The third `entity`
-   * arg is bridged through to the scope resolver's 2-arg form (which ignores
-   * the entity) so callers relying on it keep working.
+   * importance. Default: `${name}-${postfixFor(entity)}`.
    */
-  resolveTie?: (name: string, entity: E, postfix: string) => string;
+  resolveTie?: (name: string, postfix: string) => string;
   /**
    * Numeric-suffix form when a fallback name collides with an existing claim.
    * Default: `${name}${n}` where `n` starts at 2.
@@ -1029,11 +1029,7 @@ export function assignNames<E>(options: AssignNamesOptions<E>): AssignNamesResul
   const result = resolveLexicalNames<E>(root, {
     postfixFor,
     onTie,
-    // Bridge the flat API's 3-arg resolveTie (name, entity, postfix) to the
-    // scope resolver's 2-arg (name, postfix). The scope resolver doesn't pass
-    // an entity, so we can't honor entity-dependent tie forms here — class-namer
-    // (the only consumer) uses the default, name+postfix form.
-    ...(resolveTie && { resolveTie: (name: string, postfix: string) => resolveTie(name, undefined as never, postfix) }),
+    ...(resolveTie && { resolveTie }),
     ...(fallbackSuffix && { fallbackSuffix }),
     ...(compareEntities && { compareEntities }),
     ...(describe && { describeEntity: describe }),

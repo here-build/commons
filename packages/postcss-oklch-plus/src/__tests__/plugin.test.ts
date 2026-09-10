@@ -125,8 +125,7 @@ describe("plugin hygiene", () => {
     expect(value("red")).toBe("red");
   });
 
-  it("respects custom function names and options", () => {
-    const out = value("hk(0.7 0.2 30)", { safeHkName: "hk", chromaCap: 0.2 });
-    expect(out).toBe("oklch(0.6764 0.2 30)");
+  it("respects chromaCap on oklch-safe", () => {
+    expect(value("oklch-safe(0.7 0.5 30)", { chromaCap: 0.2 })).toBe("oklch(0.7 0.2 30)");
   });
 });

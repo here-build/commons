@@ -7,13 +7,13 @@
     "access": "public"
   },
   "devDependencies": {
-    "typescript": "6.0.2"
+    "typescript": "catalog:"
   },
   "exports": {
     "./purpose/lib": "./purpose/lib.json",
     "./purpose/app": "./purpose/app.json",
     "./env/node": "./env/node.json",
-    "./env/cf": "./env/cf.json",
+    "./env/cf": "./env/node.json",
     "./env/browser": "./env/browser.json",
     "./env/browser-widespread": "./env/browser-widespread.json",
     "./env/consumer": "./env/consumer.json"

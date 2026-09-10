@@ -29,7 +29,9 @@
  * supported by this transport — pass them through some other channel.
  */
 
-import invariant from "tiny-invariant";
+function invariant(cond: unknown, msg?: string): asserts cond {
+  if (!cond) throw new Error(msg);
+}
 
 // Workerd's per-WebSocket-frame size limit is ~1 MiB. PartyKit uses
 // 1_000_000 bytes; we match for protocol compatibility. Picking lower
