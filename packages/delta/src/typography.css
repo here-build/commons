@@ -1,0 +1,444 @@
+@import "./typography-configuration-properties.css";
+
+@custom-selector :--element .Δaction, .Δgroup, .Δcontrol, .Δdisplay, .Δcontainer;
+
+/*
+FOR CLAUDE: Do not touch before reading the docs and ensuring you are doing aligned changes.
+This is not a design system or utility classes, this is a visual semantics grammar.
+*/
+
+@layer delta.typography {
+    /* Typography configuration */
+    :root {
+        --font-family: var(--font-sans);
+    }
+
+    .Δtext {
+        /* Text defaults to secondary, not primary. Primary is reserved for the most important
+           text in a context — it must be actively claimed via Δimportance-high. Starting at
+           secondary means the common case (supporting text, labels, descriptions) needs no
+           modifier, while primary becomes a meaningful upgrade. */
+        --text-color: var(--color-text-secondary);
+    }
+
+    .Δtext.Δlayout {
+        /* Resolves the ambiguity when both primitive types are present on the same element.
+           Δtext wants display: inline; Δlayout wants display: flex. This rule defines the
+           precedence at their intersection: inline-flex — text node wins on flow context,
+           layout wins on internal arrangement. */
+        display: inline-flex;
+        align-items: center;
+    }
+
+    .Δtext.Δgrid {
+        /* Same intersection logic as Δtext.Δlayout: text wins on flow context (inline),
+           grid wins on internal arrangement. */
+        display: inline-grid;
+    }
+
+    :root,
+    .Δaction, .Δcontrol, .Δgroup, .Δdisplay, .Δtext {
+        /*
+        Tracking formula: (base + constant) × 1px × pow(1.25, -factor) − constant × 1px
+        Produces a scale-responsive curve:
+          Small text (factor < 0): negative tracking — tighter, easier to scan at small sizes
+          Base (factor = 0):       ≈ tracking-base × 1px — near-zero, font's natural spacing
+          Display (factor > 0):    positive, increasing tracking — open and airy for sparse words
+        Applied with max(-0.15px, ...) clamp below to prevent excessive tightening.
+        */
+        --letter-spacing: calc(
+                (var(--⚙️tracking-base) + var(--⚙️tracking-constant)) * 1px * pow(0.8, var(--🔧font-factor)) -
+                var(--⚙️tracking-constant) * 1px
+        );
+        /* Optical baseline correction: font's visual center sits above mathematical center.
+           Scales with line-height so the offset stays proportional across font sizes. */
+        --font-baseline-adjust: calc(var(--⚙️font-baseline-compensation-factor) * var(--line-height));
+
+        /*
+        Surface-adaptive weight: linear interpolation between dark-surface weight and
+        light-surface weight based on surface lightness. Darker surfaces use lighter
+        weight to counter gamma spreading (sRGB γ=2.2 makes light-on-dark strokes
+        appear bolder than their numeric weight).
+
+        Inverse scaling: pow(1.25, -factor) makes display text LIGHTER, not heavier.
+        Traditional print typography used heavier display weights to compensate for
+        proportionally smaller ink spread at large sizes — a physical medium constraint
+        that doesn't apply to screen rendering. On high-DPI screens with subpixel
+        rendering, strokes render at exact weight.
+
+        In tool UI with petite-cap headings, inverse weight works because:
+        - Petite caps are already optically dense (full x-height, no ascender gaps)
+        - Section labels carry less information than body text — weight should follow
+          information density, not visual size
+        - Delta's spacing system (golden ratio gaps, density factors) handles hierarchy
+          through whitespace — heavy weight competes with rather than complements it
+        - Lighter display weight lets size, caps, and spacing share hierarchical duty
+          at equal volume instead of weight shouting over them
+        */
+        --font-weight: calc(
+                (var(--⚙️weight-dark-surface) + (var(--⚙️weight-light-surface) - var(--⚙️weight-dark-surface)) *
+                var(--🔧lightness-surface)) * pow(0.8, var(--🔧font-factor))
+        );
+
+        /* Grayscale anti-aliasing for dark themes: subpixel rendering produces color fringing
+           when rendering light text on dark backgrounds (it's optimized for the inverse).
+           Grayscale mode avoids fringing at the cost of slightly softer stroke edges. */
+        --font-smoothing: antialiased;
+    }
+
+
+    :root, .Δsurface, .Δoverlay, :--element {
+        /*
+        Dynamic WCAG floor: computes the minimum text lightness that achieves the required
+        contrast ratio against the actual background at this point in the cascade.
+          lightness-surface:               base background
+          within-filled-context × increment: filled elements raise the background one step
+          lightness (interaction state):   hovered/focused elements raise it further
+          wcag-contrast-requirement:       the minimum additional delta for WCAG compliance
+        Text color lightness is then clamped to max(configured-lightness, min-wcag) —
+        text can only get brighter (higher contrast), never drop below the floor.
+        This ensures WCAG compliance automatically as elements change state, without
+        hard-coded color overrides per state.
+        */
+        --min-wcag: calc(var(--🔧lightness-surface) + var(--within-filled-context, 0) * var(--🔧lightness-element-increment) + var(--🎛lightness, 0) + var(--⚙️wcag-contrast-requirement));
+        --color-text-primary: oklch(max(var(--⚙️lightness-text-primary), var(--min-wcag)) 0 var(--⚙️hue-neutral));
+        --color-text-secondary: oklch(max(var(--⚙️lightness-text-secondary), var(--min-wcag)) 0 var(--⚙️hue-neutral));
+        --color-text-tertiary: oklch(max(var(--⚙️lightness-text-tertiary), var(--min-wcag)) 0 var(--⚙️hue-neutral));
+    }
+
+    /* Text roles - semantic, not visual */
+    .Δtext {
+        display: inline;
+
+        /*
+        Text nodes satisfy minimum breathing room requirements simultaneously for all three
+        spatial relationships they can be in: text-text, text-element, and layout > text+element.
+        All three vary with density/scale factors — so the requirement is expressed through the
+        same variables those relationships use:
+          padding: the element-to-boundary breathing room floor (reflects density factors,
+                   same vocabulary as padded elements regardless of whether text has a background)
+          gap/2:   half the between-siblings gap (each side contributes gap/2 toward the total gap)
+          max():   whichever requirement is stricter wins — text must satisfy both simultaneously
+        Padding is zeroed so the spacing is realized as margin (text flow doesn't consume box model
+        space the way block padding does), but the value still comes from the spacing computation.
+        */
+        &:where(:not(.Δaction, .Δcontrol, .Δgroup, .Δdisplay)) {
+            padding-top: 0;
+            padding-bottom: 0;
+            margin-top: max(var(--padding-top), calc(var(--gap-y) / 2));
+            margin-bottom: max(var(--padding-bottom), calc(var(--gap-y) / 2));
+        }
+
+        /* Supporting text roles: one scale step smaller than context.
+           Captions, labels, code, shortcuts, chips are all subordinate metadata —
+           they should read at a glance without competing with primary content. */
+        &.Δrole-caption,
+        &.Δrole-code,
+        &.Δrole-shortcut,
+        &.Δrole-chip {
+            --🔧font-factor: calc(var(--🔧scale-factor) - 1);
+        }
+
+        /* Display text (headings) */
+
+        &.Δrole-display,
+        &.Δhierarchy-1,
+        &.Δhierarchy-2,
+        &.Δhierarchy-3,
+        &.Δhierarchy-4 {
+            --font-family: var(--font-heading);
+            /* Petite caps declare "I am a structural label, not prose" — a register shift,
+               not a style. Distinguishes headings from body text without visual aggression.
+               Petite caps are optically proportioned (not scaled-down), so the signal is
+               clear but the text doesn't shout. */
+            font-variant-caps: all-petite-caps;
+        }
+
+        /* Size responds to hierarchy */
+
+        &.Δhierarchy-1 {
+            --🔧font-factor: 3;
+
+            &.Δrole-invitation {
+                /* Invitation register: large display text that welcomes rather than commands.
+                   Heavy weight at h1 size reads as imposing; 400 makes it feel open and spacious. */
+                --font-weight: 400;
+            }
+        }
+
+        &.Δhierarchy-2 {
+            --🔧font-factor: 2;
+        }
+
+        &.Δhierarchy-3 {
+            --🔧font-factor: 1;
+        }
+
+        &.Δhierarchy-4 {
+            --🔧font-factor: 0;
+        }
+
+        /* Body text (long reading) */
+
+        &.Δrole-body {
+            --font-family: var(--font-sans);
+            /* Optimal reading measure: Bringhurst's 45-75ch standard for comfortable reading.
+               clamp(45ch, 50vw, 75ch): 45ch floor prevents too-narrow columns on small screens,
+               50vw centers the line length at viewport mid-point, 75ch ceiling prevents
+               exhausting eye-tracking returns on wide screens. Sweet spot ≈55ch for reading speed. */
+            max-width: clamp(45ch, 50vw, 75ch);
+        }
+
+        /* UI text (interface elements) */
+
+        &.Δrole-ui {
+            --font-family: var(--font-sans);
+            /* UI uses tighter line height for space efficiency */
+            /*--🎛raw-line-height-ratio: calc(1 + (1.25 - 1) * var(--⚙️type-base, 16px) / var(--font-size));*/
+
+            /* UI text scales with density */
+        }
+
+        /* Label text */
+
+        &.Δrole-label {
+            /* Label register: uppercase + generous tracking creates a distinct spatial pattern
+               that reads as "category name" rather than content text. The slight chroma addition
+               (0.03) adds a faint hue tint, raising perceived contrast without changing lightness —
+               labels earn attention through differentness, not brightness. */
+            --text-color: oklch(from var(--color-text-tertiary) 0.6 0.03 h);
+            font-variant: all-petite-caps;
+            letter-spacing: 0.05em;
+        }
+
+        &.Δrole-caption {
+            /* Captions are subordinate metadata — tertiary lightness tier communicates
+               "supporting context, not primary content." */
+            --text-color: var(--color-text-tertiary);
+        }
+
+        /* Code text */
+
+        &.Δrole-code {
+            --font-family: var(--font-mono);
+        }
+
+        /* Keyboard shortcut */
+
+        &.Δrole-shortcut {
+            --font-family: var(--font-sans);
+            --text-color: var(--color-text-secondary);
+            text-transform: none;
+            letter-spacing: 0.025em;
+            /* Key cap appearance: raised surface one elevation step above the page surface.
+               / 1 forces full opacity — no transparency bleed onto whatever is behind the key.
+               Minimal padding + inherited border-radius gives it a key-shaped bounding box. */
+            background-color: oklch(from var(--background-color-surface) calc(l + .1) c h / 1);
+            padding: 1px 2px;
+            border-radius: var(--border-top-left-radius, 4px) var(--border-top-right-radius, 4px) var(--border-bottom-right-radius, 4px) var(--border-bottom-left-radius, 4px);
+        }
+
+        /* Chip/badge text */
+
+        &.Δrole-chip {
+            --font-family: var(--font-sans);
+            /*font-weight: 500;*/
+            letter-spacing: 0.025em;
+            border-radius: 999px;
+        }
+
+        /* Link text */
+
+        &.Δrole-link {
+            /* Links inherit accent emphasis: hue-tinted at the current lightness tier.
+               2px underline at 0.125em offset: thick enough to be unambiguous at any size,
+               offset keeps it below descenders without merging into them. */
+            --color-text-primary: oklch(max(var(--⚙️lightness-text-primary), var(--min-wcag)) var(--🔧chroma-emphasis) var(--🔧hue-emphasis));
+            --color-text-secondary: oklch(max(var(--⚙️lightness-text-secondary), var(--min-wcag)) var(--🔧chroma-emphasis) var(--🔧hue-emphasis));
+            text-decoration: underline;
+            text-decoration-thickness: 2px;
+            text-underline-offset: 0.125em;
+            cursor: pointer;
+        }
+
+        /* Semantic importance maps to lightness tier — not font-weight.
+           Importance is expressed through contrast (how much the text stands out from its surface),
+           not visual weight (how bold the strokes are). Three tiers match the three text color
+           levels: primary (≈15:1 contrast), secondary (≈6:1), tertiary (≈3:1). */
+
+        &.Δimportance-high {
+            --text-color: var(--color-text-primary);
+        }
+
+        &.Δimportance-normal {
+            --text-color: var(--color-text-secondary);
+        }
+
+        &.Δimportance-low {
+            --text-color: var(--color-text-tertiary);
+        }
+
+        /* Tabular figures: fixed-width digits so columns stay aligned even as values change.
+           Right-aligned to ensure digit positions stack. Essential for any numeric data display. */
+        &.Δnumeric {
+            font-variant-numeric: tabular-nums;
+            text-align: right;
+        }
+
+        &.Δemphasis-info,
+        &.Δemphasis-accent,
+        &.Δemphasis-success,
+        &.Δemphasis-variant,
+        &.Δemphasis-data,
+        &.Δemphasis-warning,
+        &.Δemphasis-danger,
+        &.Δemphasis-error {
+            /* Semantic emphasis tints all text tiers with the emphasis hue. Lightness stays
+               at the configured tier (with WCAG floor applied) — only hue and chroma are added.
+               This way importance hierarchy remains readable within an emphasis context. */
+            --color-text-primary: oklch(max(var(--⚙️lightness-text-primary), var(--min-wcag)) var(--🔧chroma-emphasis) var(--🔧hue-emphasis));
+            --color-text-secondary: oklch(max(var(--⚙️lightness-text-secondary), var(--min-wcag)) var(--🔧chroma-emphasis) var(--🔧hue-emphasis));
+            --color-text-tertiary: oklch(max(var(--⚙️lightness-text-tertiary), var(--min-wcag)) var(--🔧chroma-emphasis) var(--🔧hue-emphasis));
+        }
+    }
+
+    .Δlayout.Δvertical, .Δgrid {
+        /* Snapshot layout padding at this cascade point for text margin compensation below. */
+        --🔧layout-padding-top: var(--padding-top);
+        --🔧layout-padding-bottom: var(--padding-bottom);
+        --🔧layout-padding-left: var(--padding-left);
+        --🔧layout-padding-right: var(--padding-right);
+
+        & > .Δtext:where(:not(.Δaction, .Δcontrol, .Δgroup, .Δdisplay)) {
+            /*
+            Text nodes inside vertical layouts need their margins reduced when the layout already
+            provides the breathing room via gap or padding. Without this, text + padded elements
+            would accumulate double-spacing: text's margin + layout's gap.
+
+            The formula: padding-borderless - border-width - (gap/2 or layout-padding)
+              = what margin is needed ABOVE what the layout already provides
+            Clamped to 0 — never pulls text nodes together, only reduces surplus.
+
+            Middle nodes: subtract half-gap (the layout handles the other half with its own gap)
+            First/last nodes: subtract the layout's own padding (it handles the edge spacing)
+            */
+            &:not(:last-child) {
+                margin-top: max(0px, calc(var(--padding-top-borderless) - var(--border-top-width) - var(--gap-y) / 2));
+            }
+
+            &:first-child {
+                margin-top: max(0px, calc(var(--padding-top-borderless) - var(--border-top-width) - var(--🔧layout-padding-top)));
+            }
+
+            &:not(:first-child) {
+                margin-bottom: max(0px, calc(var(--padding-bottom-borderless) - var(--border-bottom-width) - var(--gap-y) / 2));
+            }
+
+            &:last-child {
+                margin-bottom: max(0px, calc(var(--padding-bottom-borderless) - var(--border-bottom-width) - var(--🔧layout-padding-bottom)));
+            }
+        }
+    }
+
+    & strong {
+        /* Semantic strong: promotes to primary lightness tier + heavier weight.
+           Both axes together (contrast + weight) ensure strong reads as genuinely emphasized
+           rather than just slightly different. */
+        --text-color: var(--color-text-primary);
+        font-weight: 600;
+    }
+
+    /* Application layer: where computed typography variables become actual CSS properties. */
+    .Δoverlay,
+    .Δtext,
+    .Δtext-application {
+        color: var(--text-color);
+        /* max(-0.15px, …): clamp the most extreme negative tracking values from small-scale
+           text roles. Beyond -0.15px the letters start to merge and legibility breaks. */
+        letter-spacing: max(-0.15px, var(--letter-spacing));
+        font-weight: var(--font-weight);
+
+        /* Progressive enhancement: variable fonts get continuous weight axis control.
+           Falls back to font-weight for static fonts without @supports support. */
+        @supports (font-variation-settings: "wght" 400) {
+            font-variation-settings: "wght" var(--font-weight);
+        }
+
+        -webkit-font-smoothing: var(--font-smoothing, auto);
+        -moz-osx-font-smoothing: var(--font-smoothing, auto);
+    }
+
+    /* Utility behaviors */
+    .Δtruncated {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        /* Allow shrinking below intrinsic content size in flex containers.
+           Without this, the element refuses to shrink and ellipsis never triggers. */
+        min-width: 0;
+        max-width: 100%;
+    }
+
+    /* Responsive optimal measure utilities — same clamp pattern as Δrole-body.
+       Narrow: short-form content, sidebars, 30-50ch mobile range.
+       Standard: body text sweet spot, 45-75ch.
+       Wide: data-rich content, still within the 100ch absolute readable limit. */
+    .Δmeasure {
+        max-width: clamp(45ch, 50vw, 75ch);
+    }
+
+    .Δmeasure-narrow {
+        max-width: clamp(34ch, 40vw, 45ch);
+    }
+
+    .Δmeasure-wide {
+        max-width: clamp(68ch, 60vw, 100ch);
+    }
+
+    /* Canvas surface might use subpixel (if we ever have light sections) */
+    --font-smoothing: auto; /* Let browser decide based on contrast */
+
+    /* High contrast mode for accessibility */
+    @media (prefers-contrast: more) {
+        .Δtext {
+            /* Use standard weight in high contrast mode */
+            --font-weight: var(--⚙️weight-dark-surface);
+        }
+    }
+
+    /* Editable text - suppress default focus indicators */
+    .Δtext[contenteditable] {
+        &:focus,
+        &:focus-visible {
+            outline: none;
+        }
+    }
+
+    /* Editable text state */
+    .Δtext.Δediting {
+        /* Editing mode: text node gains a visible boundary so the editable region is clear.
+           Outline (not border) so the boundary doesn't affect layout. Negative margin exactly
+           compensates the padding — surrounding elements don't shift when editing mode is entered. */
+        outline: 2px solid var(--color-emphasis);
+        outline-offset: 1px;
+        border-radius: var(--border-radius);
+        background: var(--background-color);
+        cursor: text;
+    }
+
+    /* Placeholder support for editable text */
+    .Δtext.Δediting:empty:before {
+        content: attr(data-placeholder);
+        color: var(--color-text-tertiary);
+        /* Slightly dimmed — placeholder is a hint, not content. */
+        opacity: 0.6;
+        pointer-events: none;
+    }
+
+    /* Reduced motion - disable tracking animations */
+    @media (prefers-reduced-motion: reduce) {
+        .Δtext {
+            transition: none !important;
+        }
+    }
+}

@@ -22,6 +22,8 @@ bases and small, stable primitives that everything else stands on.
   and H-K-compensated Darcula chrome for editors in both products. No CDN.
 - `postcss-oklch-plus` — build-time `oklch()` / `oklchhk()` with correct gamut
   clamping and Helmholtz–Kohlrausch compensation.
+- `delta` — constraint-math design grammar (`@here.build/delta`). Hosts load
+  the sheet; it ships no components.
 
 ## Repository shape
 
@@ -32,5 +34,6 @@ development history under a single publishing identity.
 
 ## License
 
-[MIT](./LICENSE.md), except `packages/lexical-namer` which is
-[FSL-1.1-MIT](./packages/lexical-namer/LICENSE.md).
+[MIT](./LICENSE.md), except
+[lexical-namer](./packages/lexical-namer/LICENSE.md) and
+[delta](./packages/delta/LICENSE.md), which are FSL-1.1-MIT.

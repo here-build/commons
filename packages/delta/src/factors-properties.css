@@ -1,0 +1,208 @@
+@property --🔧lightness-surface {
+    syntax: "<number>";
+    initial-value: 0.04;
+    inherits: true;
+}
+
+@property --🔧lightness-element-increment {
+    syntax: "<number>";
+    initial-value: 0.15;
+    inherits: true;
+}
+
+@property --🔧font-factor {
+    syntax: "<number>";
+    initial-value: 0;
+    inherits: false;
+}
+
+@property --🔧scale-factor {
+    syntax: "<integer>";
+    initial-value: 0;
+    inherits: true;
+}
+
+@property --🔧affinity-factor {
+    syntax: "<integer>";
+    initial-value: 0;
+    inherits: true;
+}
+@property --🔧density-factor {
+    syntax: "<integer>";
+    initial-value: 0;
+    inherits: true;
+}
+
+@property --🔧hue-emphasis {
+    syntax: "<number>";
+    initial-value: 240;
+    inherits: true;
+}
+
+@property --🔧chroma-emphasis {
+    syntax: "<number>";
+    initial-value: 0;
+    inherits: true;
+}
+
+@property --🔧min-chroma {
+    syntax: "<number>";
+    initial-value: 0;
+    inherits: true;
+}
+
+/* =========================
+   HUE SYSTEM
+   ========================= */
+@property --⚙️hue-neutral {
+    syntax: "<number>";
+    initial-value: 211; /* Slight blue bias matching accent for consistency */
+    inherits: false;
+}
+
+@property --⚙️hue-emphasis-accent {
+    syntax: "<number>";
+    initial-value: 211; /* Apple's cognitive blue - 470-480nm working memory enhancement */
+    inherits: false;
+}
+
+@property --⚙️hue-emphasis-success {
+    syntax: "<number>";
+    initial-value: 142; /* Cross-cultural green prototype + cortisol reduction */
+    inherits: false;
+}
+
+@property --⚙️hue-emphasis-info {
+    syntax: "<number>";
+    initial-value: 195; /* Turquoise - alertness without anxiety */
+    inherits: false;
+}
+
+@property --⚙️hue-emphasis-variant {
+    syntax: "<number>";
+    initial-value: 285; /* Purple - specialized contexts, gaming/creative tools */
+    inherits: false;
+}
+
+@property --⚙️hue-emphasis-error {
+    syntax: "<number>";
+    initial-value: 30; /* Red - detail attention for actual danger */
+    inherits: false;
+}
+
+@property --⚙️hue-emphasis-data {
+    syntax: "<number>";
+    initial-value: 195; /* Same "info" cyan but will have higher chroma */
+    inherits: false;
+}
+
+@property --⚙️hue-emphasis-danger {
+    syntax: "<number>";
+    initial-value: 35; /* Bit more orange - actual danger */
+    inherits: false;
+}
+
+@property --⚙️hue-emphasis-warning {
+    syntax: "<number>";
+    initial-value: 110; /* Warning yellow - ultimate attention grabber, caution not danger */
+    inherits: false;
+}
+
+@property --⚙️lightness-factor {
+    syntax: "<number>";
+    initial-value: -1; /* Dark theme: -1, Light theme: 1 */
+    inherits: true;
+}
+
+@property --⚙️lightness-factor-inversion {
+    syntax: "<number>";
+    initial-value: 1; /* Dark theme: 1, Light theme: -1 */
+    inherits: true;
+}
+
+/* =========================
+   CHROMA SYSTEM
+   ========================= */
+@property --⚙️chroma-neutral {
+    syntax: "<number>";
+    initial-value: 0; /* Pure grayscale for all neutrals */
+    inherits: false;
+}
+
+@property --⚙️chroma-primary {
+    syntax: "<number>";
+    initial-value: 0.35; /* Peak chroma - purple has highest perceptual saturation in OKLCH */
+    inherits: false;
+}
+
+@property --⚙️chroma-secondary {
+    syntax: "<number>";
+    initial-value: 0.15; /* Noticeable but not competing */
+    inherits: false;
+}
+
+@property --⚙️chroma-tertiary {
+    syntax: "<number>";
+    initial-value: 0.08; /* Barely tinted semantic colors */
+    inherits: false;
+}
+
+@property --⚙️wcag-contrast-requirement {
+    syntax: "<number>";
+    initial-value: 0.39; /* OKLCH gives us linear scale, allowing to just use 0.13 step per each step of contrast ratio */
+    inherits: false;
+}
+
+/* =========================
+   RELIEF SYSTEM  (embossed / debossed)
+   Dark-theme depth is lightness, not shadow. A relief element's floor sits one --⚙️relief-depth
+   above (raised) / below (pressed) its surface; --⚙️relief-bevel is the light-from-above gradient
+   differential that makes it READ as relief (a flat step alone doesn't — Kleffner & Ramachandran 1992).
+   ========================= */
+@property --⚙️relief-depth {
+    syntax: "<number>";
+    initial-value: 0.07; /* ≈ one JND (7.4%) — one surface level of recess/lift; perceptible, subtle */
+    inherits: false;
+}
+
+@property --⚙️relief-bevel {
+    syntax: "<number>";
+    initial-value: 0.035; /* half the depth — the vertical lit/shadowed edge swing that locks the percept */
+    inherits: false;
+}
+
+@property --🎛prominence-border-alpha {
+    syntax: "<number>";
+    initial-value: 1;
+    inherits: false;
+}
+
+@property --🎛prominence-lightness-modifier {
+    syntax: "<number>";
+    initial-value: 1.83;
+    inherits: false;
+}
+
+@property --🎛prominence-chroma-modifier {
+    syntax: "<number>";
+    initial-value: 0.7;
+    inherits: false;
+}
+
+@property --🎛prominence-text-chroma-modifier {
+    syntax: "<number>";
+    initial-value: 2.2;
+    inherits: false;
+}
+
+@property --within-filled-context {
+    syntax: "0 | 1";
+    initial-value: 0;
+    inherits: true;
+}
+
+@property --beyond-filled-context {
+    syntax: "0 | 1";
+    initial-value: 0;
+    inherits: true;
+}

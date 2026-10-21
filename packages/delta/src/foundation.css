@@ -1,0 +1,893 @@
+@import "./foundation-properties.css";
+@import "./foundation-configuration-properties.css";
+@import "./foundation-public-properties.css";
+
+@custom-selector :--element .Δaction, .Δgroup, .Δcontrol, .Δdisplay, .Δcontainer;
+
+@custom-selector :--not-element :not(.Δaction, .Δgroup, .Δcontrol, .Δdisplay, .Δcontainer);
+
+@custom-selector :--interactive :where(.Δhoverable, .Δcheckable, .Δfocusable, .Δactivable);
+
+@custom-selector :--hovered :where(.Δhoverable:hover, .Δhoverable.Δis-hover, .Δhoverable:has(:hover, .Δis-hover));
+
+@custom-selector :--checked :where(.Δcheckable:checked, .Δcheckable.Δis-checked, .Δcheckable:has(:checked, .Δis-checked));
+
+@custom-selector :--focused :where(.Δfocusable:has(:focus-visible), .Δfocusable:focus-visible);
+
+@custom-selector :--active :where(.Δactivable:active, .Δactivable.Δis-active, .Δactivable:has(:active, .Δis-active));
+
+@custom-selector :--highlighted :where(:--hovered, :--checked, :--focused, :--active);
+
+/*
+FOR CLAUDE: Do not touch before reading the docs and ensuring you are doing aligned changes.
+This is not a design system or utility classes, this is a visual semantics grammar.
+*/
+
+/*
+OKLCH COLOR MODEL — why this space, and why it's weird
+
+OKLCH is used throughout Delta because it's the only CSS color space where the arithmetic
+is perceptually algebraic: "+0.10 lightness" always feels like "roughly 10% brighter" to a
+human observer, regardless of starting value or hue. This property follows from Weber-Fechner
+(perceived intensity is logarithmic: S = k × log(I/I₀)) — equal percentage steps feel equal. In sRGB or HSL this breaks completely —
+equal numeric steps produce wildly unequal perceived changes. A blue at HSL 50% lightness
+looks dramatically darker than a yellow at the same value. In OKLCH, L is calibrated to
+human vision: you can reason about lightness differences as perceptual quantities, not just
+coordinate offsets. This is why the elevation steps, interaction feedback values, and JND
+thresholds in this file are expressed as simple numeric deltas rather than lookup tables.
+
+
+ZERO-CHROMA COLORS WITH NON-ZERO HUE
+
+Colors declared as oklch(L 0 H) are pure gray per spec — hue is undefined when chroma is
+zero. We use non-zero H anyway, for two reasons:
+
+1. Structural: CSS relative color syntax preserves hue through derivations.
+      oklch(from oklch(0 0 100) 10 10 h)  →  oklch(10 10 100)
+   The h keyword picks up 100, not 0. Zero-chroma colors with intentional hue act as
+   "gray that remembers its hue family" — downstream interactive states and computed colors
+   inherit the right hue direction even before chroma is applied.
+
+2. Browser rendering: OKLCH gamut clamping bugs cause faint perceptual artifacts at the
+   achromatic axis. var(--⚙️hue-neutral) steers those artifacts toward the palette's tonal
+   family rather than leaving them random. See the P3 clamping section below.
+
+
+P3 GAMUT CLAMPING BUG
+
+Browsers should gamut-map out-of-sRGB OKLCH colors (find the nearest in-gamut color,
+preserving hue and lightness). Instead they clip channels, producing wrong hues at high
+chroma. We pre-cap chroma manually:
+
+    min(0.35, sqrt(min(L, 1-L) / 2), C)
+
+This is a bell curve peaking near L=0.5 and falling to zero at extremes, keeping chroma
+within P3 everywhere. Known bug, multiple open issues (links in the clamping comment below).
+
+
+HELMHOLTZ-KOHLRAUSCH COMPENSATION
+
+OKLCH L is perceptually uniform for achromatic colors, but chromatic colors break the
+algebra: a red at L=0.5 looks perceptually brighter than a gray at L=0.5, even though the
+number is the same. The HK effect is hue-dependent — reds, oranges, and blues are most
+affected; cyans least.
+
+The HK compensation below subtracts a hue-dependent lightness offset from colored elements
+so that a colored button at L=X and a gray button at L=X appear equally bright to a human
+observer. Without it, the perceptually algebraic promise of OKLCH breaks down the moment
+you introduce chroma: accent buttons would look "too bright" and would need manual fudging
+per color. With it, the system's lightness math stays valid across both grayscale and
+chromatic values.
+
+Critically, this compensation is only expressible as a live CSS calc() formula *because*
+OKLCH exposes L, C, and H as independent orthogonal axes. In HSL, lightness and saturation
+are non-linearly entangled. In sRGB, there is no lightness axis. In those spaces, "subtract
+a hue-dependent lightness offset" cannot be written as a CSS function at all — it would
+require a pre-baked lookup table per color. OKLCH makes it a one-liner.
+*/
+
+/*
+DELTA CONFIGURATION LAYER
+========================
+This layer defines the mathematical foundation of the design system.
+Every line here represents hours of thinking - changes require deep understanding.
+
+CLASS SYSTEM STRUCTURE
+Delta has two entity domains — element (Δaction, Δcontrol, Δdisplay, Δgroup) and text (Δtext).
+All visual properties emerge from the cross-product of entity × modifiers (Δfilled, Δbordered,
+Δhoverable, …). The cascade covers every combination exhaustively: no matter which classes are
+added or removed at runtime, every intermediate state resolves to a valid visual result.
+
+Factors (Δdensity-*, Δscale-*, Δemphasis-*) are not part of the cross-product — they are
+parameter injectors that set a CSS custom property feeding downstream computations.
+Semantically equivalent to writing --density-factor: 2 directly.
+
+Variable Prefix Semantics:
+- ⚙️ (sprocket) = Global configuration that affects the entire system
+- 🎛️ (tune board) = Intermediate computations, must be redeclared at usage level
+- 🔧 (wrench) = Cascade adjustments - "I've tweaked the general assumption here"
+*/
+
+@layer delta.configuration {
+    :root, .Δsurface, .Δoverlay {
+        /*
+        Shadow color is a solid OKLCH value (surface lightness + negative offset), not rgba.
+        CSS blur fades from this solid color to transparent naturally — no alpha stacking needed.
+        See OKLCH preamble: non-transparent shadows avoid compositing artifacts on dark backgrounds.
+        Hue=0 (not hue-neutral): shadows don't participate in relative color derivations.
+
+        Size progression — Y offset doubles per tier (1→2→4px), blur grows (3→6→8px):
+        subtle: barely lifted, almost flat. medium: clearly floating. raised: modal/overlay level.
+        All tiers are sized to remain within the gap between adjacent elements so shadows from
+        neighboring items never visually bleed into each other.
+        */
+        --🔧shadow-subtle: 0 1px 3px oklch(calc(var(--🔧lightness-surface) + var(--⚙️shadow-offset-subtle)) 0 0);
+        --🔧shadow-medium: 0 2px 6px oklch(calc(var(--🔧lightness-surface) + var(--⚙️shadow-offset-medium)) 0 0);
+        --🔧shadow-raised: 0 4px 8px oklch(calc(var(--🔧lightness-surface) + var(--⚙️shadow-offset-raised)) 0 0);
+
+        /* Zero chroma — pure gray per spec, but hue-neutral is non-zero intentionally.
+           See OKLCH preamble: hue propagates through relative color derivations (h keyword),
+           and steers browser achromatic-axis artifacts toward the palette's tonal family. */
+        --color-text-primary: oklch(var(--⚙️lightness-text-primary) 0 var(--⚙️hue-neutral));
+        --color-text-secondary: oklch(var(--⚙️lightness-text-secondary) 0 var(--⚙️hue-neutral));
+        --color-text-tertiary: oklch(var(--⚙️lightness-text-tertiary) 0 var(--⚙️hue-neutral));
+        --color-text-disabled: oklch(var(--⚙️lightness-text-disabled) 0 var(--⚙️hue-neutral));
+
+        /*
+        GLYPH / INTERACTION DIM LADDER — static opacity tiers for non-text glyphs
+        (icons, SVG affordances, carets) and interaction-availability states.
+
+        Strictly NOT for text. Two neighbouring systems own everything else:
+          • TEXT dims via lightness — the colour tiers above
+            (--color-text-secondary/tertiary/disabled). A greyed label, a unit
+            qualifier, a caption, a placeholder: those are text, they follow the
+            lightness axis, not this ladder.
+          • DYNAMIC interaction dimming (proximity / context / page-focus) is the
+            presence cascade below (--presence-*, Δdimmer/Δdimmable).
+
+        This ladder is the remaining case: a STATIC alpha on a glyph/element whose
+        background is unknown, keyed to how *available* it is. Before this, each
+        site hard-coded its own number (the audit found ~40 distinct values).
+
+        Pick by INTENT, not by number — the names are the API, the values retune
+        globally:
+        */
+        --dim-ghost: 0.25;      /* barely-present glyph — not (yet) relevant */
+        --dim-quiet: 0.4;       /* idle affordance — brightens to 1 on interaction */
+        --dim-disabled: 0.5;    /* disabled / unavailable control — clearly off */
+    }
+
+
+    /* COMPUTATION POINTS */
+    /* container is special non-styled entity that acts as purely computation and selector point without visual styles */
+    :--element {
+        /*
+        Interaction state lightness deltas — added to base element lightness.
+        0.05 checked/focused/active: just above the 7.4% JND, minimum detectable state change.
+        0.10 hovered: 2× JND, unmistakably different from rest but not alarming.
+        0.15 hover+checked / hover+active: compound states must stay distinct from each other.
+        0.20 nested hover (inner element): strong separation — inner hover must read over parent hover.
+
+        The nested hover problem: when you hover an inner element, the parent is still technically
+        hovered (CSS hover bubbles up and cannot be suppressed without JS). Two approaches exist:
+          A. Increase inner element brightness (current: 0.20 vs parent 0.10) — simple, always works.
+          B. Reduce parent brightness when a child is hovered (the commented-out 0.05 below) —
+             more elegant attention direction but creates inconsistency: some parent elements benefit
+             from dimming, others feel wrong. Unresolved.
+        */
+
+        &:--checked, &:--focused, &:--active {
+            --🎛lightness: calc(0.05);
+        }
+
+        &:--hovered {
+            --🎛lightness: calc(0.1);
+
+            &:has(:--hovered) {
+                /*some elements need this, some need that - needs to think*/
+                /*--🎛lightness: 0.05;*/
+
+                :--hovered {
+                    --🎛lightness: calc(0.2);
+                }
+            }
+
+            &:--checked {
+                --🎛lightness: calc(0.15);
+            }
+
+            &:--active {
+                --🎛lightness: calc(0.15);
+            }
+        }
+    }
+
+    /* computation flow is non-inheritable */
+    :root, .Δsurface, .Δoverlay, :--element {
+        /*
+        Two accent flows must feel equally highlighted at the same interaction state:
+          Filled elements:  direct lightness addition to the solid color (+🎛lightness)
+          Ghost elements:   colored overlay added at some alpha on top of the surface
+        This derives the alpha that makes the ghost overlay produce the same perceived
+        lightness increment as the direct solid shift — by expressing the interaction
+        delta as a fraction of the full element-to-surface lightness gap.
+        Approximation: assumes linear lightness blending, which holds for small deltas.
+        */
+        --🎛alpha: calc(var(--🎛lightness) / var(--🔧lightness-element-increment));
+
+        --lightness-neutral: calc(var(--🔧lightness-surface) + var(--🔧lightness-element-increment));
+        /*
+        Chroma after prominence and intent scaling. Three factors applied:
+          chroma-emphasis:            base chroma budget for this hue family
+          prominence-chroma-modifier: how boldly this element type expresses its color
+          pow(1.618, intent-factor):  golden ratio progression across semantic tiers —
+                                      action (0) at full chroma, each step down (control -1,
+                                      group -2, display -3) reduces at φ^n.
+                                      1.618 chosen for dramatic contrast (vs 1.25 for subtle):
+                                      intent tiers must read unmistakably different in weight,
+                                      same design science rationale as using φ for size hierarchy.
+          max(min-chroma, …):         emphasis colors always show some chroma even at lowest intent.
+          0.4 cap:                    browser-safe maximum before hue shifts on gamut clipping
+                                      (see P3 clamping bug in OKLCH preamble).
+        */
+        --chroma-emphasis: max(var(--🔧min-chroma), min(0.4, calc(var(--🔧chroma-emphasis) * var(--🎛prominence-chroma-modifier) * pow(1.618, var(--🔧intent-factor)))));
+        /*
+        Helmholtz-Kohlrausch compensation — see OKLCH preamble for the what and why.
+        Goal: derive how much lightness to subtract from a colored element so it appears
+        perceptually level with a neutral gray at the same OKLCH L.
+
+        HK effect has two separate hue-dependent peaks:
+          - Warm hues (red, orange, yellow) are perceived significantly brighter than their L
+          - Blue has its own independent brightness bump, separate from the warm curve
+
+        Emergent capability: smooth invisible grayscale transition.
+        Peripheral vision tracks luminance, not chroma — and this is structural, not a
+        threshold effect. Rods (~120M photoreceptors) dominate the periphery and are absent
+        from the fovea. They have a single photopigment (rhodopsin) that detects luminance
+        but is monochromatic — rods literally have no mechanism to detect wavelength
+        differences. Cones (~6M) that enable chroma/hue discrimination are concentrated in
+        the fovea and become sparse toward the periphery.
+        When chroma is reduced to zero while HK comp keeps perceptual luminance constant,
+        peripheral rod photoreceptors register no change at all — the chroma shift is
+        invisible to them by physics. Foveal cones would detect it on direct gaze, but by
+        design the dimmed elements are in periphery while the user focuses elsewhere.
+        This is what makes the dimmer's pale-monochrome mode work: setting chroma-emphasis
+        to 0 transitions smoothly rather than visibly "draining color." Our approximation
+        isn't perfect for color-to-color transitions, but for the colored↔gray axis the
+        luminance preservation is accurate enough for peripheral rods to miss it entirely.
+
+        🧮 prefix = pure intermediate computation, no semantic meaning, never used externally.
+        */
+        /*
+        HK hue weight: 3-harmonic Fourier fit (R²=0.98) of the *shape* of Nayatani-1997's VAC hue
+        term q(θ), evaluated over OKLCH hue at fixed chroma, rescaled so its mean (0.779) preserves
+        Delta's compensation budget — only the per-hue allocation follows Nayatani. Shape is
+        Nayatani's; magnitude is Delta's. Inherently bounded ~[0.54, 0.92], so no clamp() needed.
+        H in degrees → cos(k·var(--🔧hue-emphasis)·1deg).
+        SSOT: docs/thinking/raw-data/design-science/helmholtz-kohlrausch-models.md
+        */
+        --🧮hue-factor: calc(
+                0.77911
+                + 0.08091 * cos(var(--🔧hue-emphasis) * 1deg)     - 0.13593 * sin(var(--🔧hue-emphasis) * 1deg)
+                + 0.06202 * cos(2 * var(--🔧hue-emphasis) * 1deg) - 0.00365 * sin(2 * var(--🔧hue-emphasis) * 1deg)
+                - 0.01415 * cos(3 * var(--🔧hue-emphasis) * 1deg) + 0.03377 * sin(3 * var(--🔧hue-emphasis) * 1deg)
+        );
+        --🧮emphasis-hk-compensation: calc(var(--⚙️lightness-factor) * 0.14 * var(--🔧chroma-emphasis) * var(--🧮hue-factor)); /* lightness to subtract: scales with chroma (zero chroma = no HK effect) and hue-factor */
+
+        /*
+        Surface baseline + (increment × prominence × intent scaling) − HK compensation.
+        Intent scaling uses 1.25 (Major Third), not 1.618 — deliberate contrast with chroma.
+        Luminance contrast is 2-3x more perceptually effective than chromatic contrast
+        (Conway 2009, colors.md), so less lightness change is needed for equivalent hierarchy
+        impact. Ratio choices are inverse to perceptual effectiveness:
+          lightness: 1.25 (subtle) — smaller step, larger perceptual impact per unit
+          chroma:    1.618 (dramatic) — larger step needed, chroma has less hierarchy power
+        */
+        --lightness-emphasis: calc(
+                var(--🔧lightness-surface) + var(--🔧lightness-element-increment) * var(--🎛prominence-lightness-modifier) * pow(1.25, var(--🔧intent-factor) * var(--⚙️lightness-factor-inversion)) -
+                var(--🧮emphasis-hk-compensation)
+        );
+        --chroma-emphasis-text: min(0.4, calc(var(--🔧chroma-emphasis) * var(--🎛prominence-text-chroma-modifier)));
+        --lightness-emphasis-text: calc(
+                var(--⚙️lightness-emphasis-text) * var(--🎛prominence-text-chroma-modifier) +
+                var(--chroma-emphasis-text) * var(--🧮emphasis-hk-compensation) * 0.5
+        );
+
+        /* Legacy text color for backward compatibility */
+        --color-neutral: oklch(
+                calc(var(--🔧lightness-surface) + var(--🔧lightness-element-increment)) var(--⚙️chroma-neutral) var(--⚙️hue-neutral)
+        );
+        --color-neutral-text: var(--color-text-primary);
+
+        /*
+        browsers broke oklch clamping so we have to fix it manually with min(0.35, sqrt(lightness) curve, chroma) making the capped bell curve to fit in p3
+        hope it will be fixed someday
+        https://issues.chromium.org/issues/331666851
+        https://issues.chromium.org/issues/325598621?ref=blog.jonas.liljegren.org
+        https://bugs.webkit.org/show_bug.cgi?id=255939
+        https://github.com/web-platform-tests/interop/issues/443
+        https://github.com/w3c/csswg-drafts/issues/9449
+         */
+        /* safe() = gamut clamp (H-K already folded into --lightness-emphasis). Bell fallback while
+           hue is the dynamic --🔧hue-emphasis var; auto-upgrades to the per-hue P3 cusp once the
+           per-emphasis literal-hue bake lands (ADR-025). */
+        --color-emphasis: safe(oklch(var(--lightness-emphasis) var(--chroma-emphasis) var(--🔧hue-emphasis)));
+        --color-emphasis-text: safe(oklch(var(--lightness-emphasis-text) var(--chroma-emphasis-text) var(--🔧hue-emphasis)));
+        --color-neutral-interactive: oklch(from var(--color-neutral) calc(l + var(--🎛lightness)) c h / alpha);
+        --color-neutral-transparent-interactive: oklch(from var(--color-neutral) l c h / var(--🎛alpha));
+        --color-neutral-text-interactive: oklch(from var(--color-neutral-text) calc(l + var(--🎛lightness)) c h / alpha);
+
+        --lightness-emphasis-interactive: calc(var(--lightness-emphasis) + var(--🎛lightness));
+
+        --color-emphasis-interactive: oklch(
+                var(--lightness-emphasis-interactive) min(max(0.35, sqrt(min(var(--lightness-emphasis-interactive), 1 - var(--lightness-emphasis-interactive)) / 2)), var(--chroma-emphasis)) var(--🔧hue-emphasis)
+        );
+        --lightness-emphasis-text-interactive: calc(var(--lightness-emphasis-text) + var(--🎛lightness));
+
+        --color-emphasis-text-interactive: oklch(
+                var(--lightness-emphasis-text-interactive) min(max(0.35, sqrt(min(var(--lightness-emphasis-text-interactive), 1 - var(--lightness-emphasis-text-interactive)) / 2)), var(--chroma-emphasis-text)) var(--🔧hue-emphasis)
+        );
+        --color-emphasis-transparent-interactive: oklch(from var(--color-emphasis) l c h / var(--🎛alpha));
+    }
+
+
+    :--element {
+        --🔧background-color: var(--color-emphasis-transparent-interactive);
+    }
+
+    /* background color related computation */
+    :root, .Δsurface, .Δoverlay {
+        --background-color-surface: oklch(var(--🔧lightness-surface) var(--⚙️chroma-neutral) var(--⚙️hue-neutral));
+        --🔧background-color: var(--background-color-surface);
+    }
+
+    :root, .Δoverlay, .Δsurface, :--element {
+        --background-color: var(--🔧background-color);
+        --text-color: var(--color-emphasis-text-interactive);
+    }
+
+    /* Complementary utility variables for calc()-based context-conditional computations.
+       Always sum to 1 — multiply any value by within/beyond to zero it out in the other context:
+         calc(X * var(--within-filled-context))  → X inside .Δfilled, 0 outside
+         calc(X * var(--beyond-filled-context))  → X outside .Δfilled, 0 inside
+       Reset at every element boundary to prevent cascade contamination. */
+    :--element {
+        --within-filled-context: 0;
+        --beyond-filled-context: 1;
+
+        &.Δfilled {
+            --within-filled-context: 1;
+            --beyond-filled-context: 0;
+            --🔧background-color: var(--color-emphasis-interactive);
+            --text-color: var(--color-neutral-text-interactive);
+        }
+    }
+
+    /*
+    RELIEF — .Δembossed (raised) / .Δdebossed (pressed) modifiers.
+
+    Depth in dark theme is lightness, not shadow (shadows vanish on dark; lightness is the channel).
+    Signed by --🧮relief-sign: +1 raised, −1 pressed. The element's floor sits one --⚙️relief-depth
+    above/below the surface it cuts into; a vertical light-from-above gradient (lit edge toward the sign)
+    is what makes it READ as relief rather than a flat darker/lighter patch — a luminance STEP alone does
+    not trigger shape-from-shading; the smooth gradient does (Kleffner & Ramachandran 1992).
+
+    --🔧background-color stays a solid color (the floor) so --border-color still derives from it; the bevel
+    is layered on as background-image over that floor.
+
+    ⚠ ENHANCEMENT ONLY — relief is never the sole signifier. It rides on top of an already-accessible base
+    (border ≥3:1 / icon / label) and degrades to the flat floor where relative color / gradients don't apply
+    (forced-colors). The recess/lift must not be the only thing telling a user "this is editable."
+    See here.build/docs/package-specific/delta/relief-height-field-model.md (accessibility constraint).
+    */
+    .Δembossed { --🧮relief-sign: 1; }
+    .Δdebossed { --🧮relief-sign: -1; }
+
+    :--element {
+        &.Δembossed,
+        &.Δdebossed {
+            --🔧background-color: oklch(
+                    calc(var(--🔧lightness-surface) + var(--🧮relief-sign) * var(--⚙️relief-depth))
+                    var(--⚙️chroma-neutral) var(--⚙️hue-neutral)
+            );
+            background-image: linear-gradient(
+                    to bottom,
+                    oklch(from var(--🔧background-color) calc(l + var(--🧮relief-sign) * var(--⚙️relief-bevel)) c h),
+                    oklch(from var(--🔧background-color) calc(l - var(--🧮relief-sign) * var(--⚙️relief-bevel)) c h)
+            );
+        }
+    }
+
+    /*
+    Border-color cascade — all four states covered, ensuring no transient visual weirdness
+    when .Δfilled / .Δbordered are added or removed at runtime (class toggle, JS state, animation).
+
+      plain:             ghost emphasis color (accent at ghost opacity — visual twin of hover fill)
+      filled:            border = background (invisible, reserves space without drawing)
+      bordered:          explicit accent border at prominence-border-alpha
+      bordered + filled: lightness-shifted border derived from background, not semi-transparent —
+                         a solid fill reads a solid ledge better than a transparent overlay
+
+    Every combination resolves to something visually coherent.
+    */
+    :root, .Δoverlay, .Δsurface {
+        --border-color: transparent;
+    }
+
+    :--element {
+        --border-color: var(--color-emphasis-transparent-interactive);
+    }
+
+    .Δfilled,
+    :root,
+    .Δoverlay,
+    .Δsurface {
+        --border-color: var(--🔧background-color);
+    }
+
+    .Δbordered {
+        --border-color: oklch(from var(--color-emphasis-interactive) l c h / var(--🎛prominence-border-alpha));
+    }
+
+    :root,
+    .Δsurface,
+    :--element.Δfilled {
+        &.Δbordered {
+            --border-color: oklch(from var(--🔧background-color) calc(l + var(--🔧lightness-element-increment) * 0.5) c h);
+        }
+    }
+
+    /* box shadows computation */
+    :root,
+    .Δsurface,
+    .Δoverlay {
+        /* Ambient glow using border-color: same hue as the element's accent, soft falloff.
+           -3px spread pulls the glow inward past the border edge so it reads as surface luminosity
+           rather than a ring. Only surfaces get the glow — elements use it via .Δfilled below. */
+        --🔧box-shadow-glow: 0 0 9px -3px var(--border-color, transparent);
+    }
+
+    /* font size specifications (core primitive to derive) computation */
+    :--element,
+    .Δlayout,
+    .Δgrid,
+    .Δstack,
+    .Δtabular,
+    .Δtext {
+        /* we create extra redundant variable intentionally to let texts set alternate font factor */
+        --🔧font-factor: var(--🔧scale-factor);
+        /*
+        Modular type scale: base × ratio^n, where ratio is Major Third (1.25) — a musical
+        interval, same mathematical relationship that makes chords harmonious.
+        With 5 scale steps (-2 to +2), 1.25 spans ×2.44 total (smallest to largest).
+        1.618 at the same range would span ×6.85 — too extreme for a compact tool UI
+        where all size levels must coexist. 1.25 stays perceptibly distinct without drama.
+        */
+        --🎛font-size: calc(var(--⚙️type-base) * pow(1.25, var(--🔧font-factor)));
+        /*
+        Reciprocal line-height model: line height grows slower than font size, so larger
+        text gets proportionally tighter leading (1.5 at base, ~1.4 at display size).
+        Shape is forced by CSS @property type constraints: <length>×<length> = px², invalid.
+        Every multiplication must be <number>×<length>. font-size is only ever added/subtracted,
+        never multiplied. Only type-base (constant length) is multiplied, always by a number.
+        */
+        --🎛raw-line-height: calc(
+                var(--🎛font-size) + var(--⚙️leading-base-ratio) * var(--⚙️type-base) - var(--⚙️type-base)
+        );
+
+        /* spatial computation */
+        /*
+        gap-factor encodes three semantic axes into one number:
+          density: how tightly the layout breathes overall
+          scale: larger content naturally needs more room
+          affinity: Gestalt proximity — related things cluster (subtracted, so higher affinity = smaller gap)
+                    Research thresholds: 16px = perceived as related, 32px = distinct groups.
+        */
+        --🎛gap-factor: calc(var(--🔧density-factor) + var(--🔧scale-factor) - var(--🔧affinity-factor));
+        /* Horizontal gap: based on line-height (the horizontal rhythm unit), scaled by φ^factor.
+           1.618 chosen for dramatic spatial contrast across density/affinity levels. */
+        --🎛gap-x: max(var(--⚙️grid-step), calc(var(--🎛raw-line-height) * pow(1.618, var(--🎛gap-factor))));
+        /* Vertical gap: one φ step smaller (factor-1) and based on font-size not line-height.
+           Typography research: paragraph spacing should be 50-100% of body text size.
+           The two reductions (smaller base + one step down) land vertical gaps in that range. */
+        --🎛gap-y: max(var(--⚙️grid-step), calc(var(--font-size) * pow(1.618, calc(var(--🎛gap-factor) - 1))));
+
+        --gap-x: max(var(--⚙️grid-step), round(var(--🎛gap-x), var(--⚙️grid-step)));
+        --gap-y: max(var(--⚙️grid-step), round(var(--🎛gap-y), var(--⚙️grid-step)));
+        --gap: var(--gap-y) var(--gap-x);
+    }
+
+    :root,
+    .Δsurface,
+    .Δoverlay,
+    :--element,
+    .Δlayout,
+    .Δgrid,
+    .Δstack,
+    .Δtabular,
+    .Δtext {
+        /* No affinity here — padding is spatial comfort of the element itself, not its relationship
+           to neighbors. Same formula as gap but halved: padding is the gap from content to boundary,
+           and gap between two adjacent elements = 2 × padding. Snapped to grid-step via round(). */
+        --🎛padding-factor: calc(var(--🔧density-factor) + var(--🔧scale-factor));
+        --🎛padding-x: max(calc(var(--⚙️grid-step) / 2), round(calc(calc(var(--🎛raw-line-height) * pow(1.618, var(--🎛padding-factor))) / 2), var(--⚙️grid-step)));
+        --🎛padding-y: max(calc(var(--⚙️grid-step) / 2), round(calc(calc(var(--font-size) * pow(1.618, calc(var(--🎛padding-factor) - 1))) / 2), var(--⚙️grid-step)));
+
+        --font-size: var(--🎛font-size);
+        --line-height: round(var(--🎛raw-line-height), var(--⚙️grid-step));
+        /* Icon sizing - matches line height for perfect alignment */
+        --icon-size: var(--line-height);
+
+        /* --padding-*-borderless is exposed and used in further computations intentionally to allow the paddings tuning. Same for border width */
+        --padding-left-borderless: var(--🎛padding-x);
+        --padding-right-borderless: var(--🎛padding-x);
+        --padding-top-borderless: var(--🎛padding-y);
+        --padding-bottom-borderless: var(--🎛padding-y);
+        --padding-borderless: var(--padding-top-borderless) var(--padding-right-borderless) var(--padding-bottom-borderless) var(--padding-left-borderless);
+
+        --border-width-size: var(--🔧border-width);
+        --border-left-width: var(--border-width-size);
+        --border-right-width: var(--border-width-size);
+        --border-top-width: var(--border-width-size);
+        --border-bottom-width: var(--border-width-size);
+        --border-width: var(--border-top-width) var(--border-right-width) var(--border-bottom-width) var(--border-left-width);
+
+        --padding-left: calc(var(--padding-left-borderless) - var(--border-left-width));
+        --padding-right: calc(var(--padding-right-borderless) - var(--border-right-width));
+        --padding-top: calc(var(--padding-top-borderless) - var(--border-top-width));
+        --padding-bottom: calc(var(--padding-bottom-borderless) - var(--border-bottom-width));
+        --padding: var(--padding-top) var(--padding-right) var(--padding-bottom) var(--padding-left);
+
+        /*
+        Radius scales with padding — nested elements naturally satisfy outer_radius = inner_radius + padding
+        (spacing research: "smooth visual transitions in nested components"). Ratio 0.5 targets
+        "rounded but not pill-shaped" (see radius-padding-ratio in properties).
+        + border-width: border consumes padding space inward, so radius must compensate to keep
+        the visual corner consistent between bordered and borderless variants at the same padding.
+        Rounded corners semantically signal approachability and safety (emotional grammar).
+        */
+        --border-radius-size: max(
+                var(--⚙️grid-step),
+                calc(var(--🎛padding-y) * var(--⚙️radius-padding-ratio) + var(--🔧border-width))
+        );
+        --border-top-left-radius: var(--border-radius-size);
+        --border-top-right-radius: var(--border-radius-size);
+        --border-bottom-left-radius: var(--border-radius-size);
+        --border-bottom-right-radius: var(--border-radius-size);
+        --border-radius: var(--border-top-left-radius) var(--border-top-right-radius) var(--border-bottom-right-radius) var(--border-bottom-left-radius);
+    }
+
+    .Δshape-pill {
+        --border-radius-size: 999px;
+    }
+
+    .Δshape-square {
+        --🎛padding-y: var(--🎛padding-x);
+    }
+
+    .Δshape-square-large {
+        --🎛padding-x: var(--🎛padding-y);
+    }
+
+    .Δfilled {
+        /* Filled elements get ambient glow (hue-matched to their accent) + subtle elevation shadow.
+           Ghost elements have neither — they don't occupy physical space, so no elevation. */
+        --box-shadow-glow: var(--🔧box-shadow-glow);
+        --box-shadow-primary: var(--🔧shadow-subtle);
+    }
+
+
+    :root,
+    .Δlayout,
+    :--element,
+    .Δgrid,
+    .Δstack,
+    .Δtabular,
+    .Δoverlay,
+    .Δsurface {
+        /*&.Δfilled.Δbordered,
+            &:where(:root, .Δsurface).Δbordered {
+                --box-shadow-glow-inset: 0 0 9px -6px var(--border-color, transparent) inset;
+            }*/
+
+        /* Secondary background offset by variant */
+        --box-shadow: var(--box-shadow-glow), var(--box-shadow-glow-inset), var(--box-shadow-primary);
+
+        /* Icon size based on line height for proper alignment */
+        --icon-size: var(--line-height);
+        --🔧border-width: 0px;
+    }
+
+    /* border-aware computation */
+    .Δbordered {
+        --🔧border-width: var(--⚙️border-width);
+
+        &:where(:root, .Δsurface, .Δfilled) {
+            --🔧border-width: 1px;
+        }
+    }
+
+    :--element {
+        &.Δfocusable:has(:focus-visible), &.Δfocusable:focus-visible {
+            /* Focus glow color - P3 clamped. min 0.05 to highlight on neutral elements */
+            /*
+            Focus ring color converted to display-p3 to avoid browser OKLCH gamut clamping bug.
+            Chroma: max(0.05, min(chroma, 0.4))
+              0.4 ceiling: P3-safe maximum (see P3 clamping bug in OKLCH preamble)
+              0.05 floor: minimum noticeable chroma — ensures focus ring is visible even on
+                          neutral gray elements where chroma-emphasis would otherwise be ~0
+            */
+            --🎛color-emphasis-focus: color(
+                    from oklch(var(--⚙️focus-glow-lightness) max(0.05, min(var(--🔧chroma-emphasis), 0.4)) var(--🔧hue-emphasis)) display-p3 r g b
+            );
+
+            --box-shadow: var(--box-shadow-glow), var(--box-shadow-glow-inset), var(--box-shadow-primary),
+            0 0 0 2px var(--🎛color-emphasis-focus);
+        }
+    }
+
+    @media (prefers-reduced-motion: no-preference) {
+        :--interactive {
+            /*
+            Property list is intentional:
+              border-radius: group sticky elements gain/lose outer corners as siblings appear —
+                             those shape changes need to animate, not snap
+              outline: .Δtext.Δediting applies an outline; this animates it in/out
+              box-shadow absent: focus rings live in --box-shadow but must appear immediately —
+                                 animating focus indicators in delays accessibility feedback
+            150ms: within the 250-500ms pre-attentive processing window — state changes complete
+                             before conscious attention engages, registering as "already happened."
+                             Emotional grammar: "micro-interactions: 100-200ms, subtle state changes"
+            */
+            --transition-property: color, background-color, border-color, border-radius, outline, transform, opacity;
+        }
+
+        :--element {
+            --transition-duration: 150ms;
+            --transition-delay: 0s;
+        }
+    }
+
+    .Δoverlay {
+        --border-width-size: 0rem;
+        /* Fixed radius — overlay shape is a global visual convention, not an element attribute.
+           Overlays are application-level containers (panels, popovers, modals); their corner
+           shape should be consistent across the UI regardless of content density or scale. */
+        --border-radius-size: calc(var(--⚙️grid-step) * 2);
+        --border-radius: var(--border-radius-size);
+        /* Two-layer shadow: depth blur at .25 alpha (underlying surface is unknown, may be mixed
+           or composite — transparency handles any background) + 1px neutral inset as soft border
+           that visually separates the overlay from whatever is behind it. */
+        --box-shadow: 0 8px 24px oklch(0 0 0 / .5), 0 0 1px var(--color-neutral) inset;
+
+        /* Overlays are containers, not interactive entities — suppress browser focus outline.
+           Focus rings belong on individual items inside (menu items, buttons, inputs). */
+        outline: none;
+
+        /* Direct children get zero border-radius so their backgrounds stretch full-bleed to the
+           overlay edges. Overlay padding around a full-bleed entity (e.g. a menu item row) looks
+           wrong — the overlay's own radius clips the content cleanly at the corners instead. */
+
+
+        & > :--element {
+            --border-radius-size: 0px;
+        }
+    }
+}
+
+@layer delta.configuration-tweaks {
+    /*
+    PRESENCE SYSTEM — Attention-aware rendering.
+
+    Two concepts:
+      Provider: declares "attention is present/absent here" via custom properties.
+      Consumer: reads presence signals and adapts its rendering.
+
+    Presence sources (providers):
+      --presence-hover   — spatial proximity (cursor near me). Fast timing (150ms out, 80ms in).
+      --presence-context — semantic relevance (I'm the active tab/section). HK-invisible timing (30s out, 150ms in).
+      --presence-page    — window focus (anyone paying attention at all). HK-invisible timing.
+
+    Consumer strategies (how to render when presence is absent):
+      Δdim-pale-monochrome   — zero chroma, lightness pulled to surface. Element reads as background.
+      Δdim-unobstructive     — transparent accent overlay. Element ghosts into surface.
+      Δfully-dimmable        — opacity 0. Element disappears entirely.
+
+    The provider sets the signal AND the timing (only the source knows the perceptual regime).
+    The consumer picks which signals to read and which strategy to apply.
+
+    Backward compatibility:
+      Δdimmer = presence-hover provider (renamed conceptually, class preserved)
+      Δdimmable = presence consumer (unchanged)
+      --dimmed/--not-dimmed = calc utilities (derived from --presence-hover)
+    */
+
+    :root {
+        --presence-page: 1;
+        --presence-hover: 1;
+        --presence-context: 1;
+        /* Backward compat calc utilities */
+        --dimmed: 0;
+        --not-dimmed: 1;
+    }
+
+    /* ── Presence-hover provider (spatial proximity) ─────────────────── */
+    /* Δdimmer is the hover boundary. When cursor leaves, --presence-hover drops to 0. */
+
+    .Δdimmer {
+        --presence-hover: 1;
+
+        &:not(:hover, .Δis-hover) {
+            --presence-hover: 0;
+            --dimmed: 1;
+            --not-dimmed: 0;
+        }
+    }
+
+    /* ── Presence-context provider (semantic relevance) ──────────────── */
+    /* Δpresence-context marks a semantic scope. Active when .is-active or :hover. */
+
+    .Δpresence-context {
+        --presence-context: 0;
+
+        &.is-active, &:hover {
+            --presence-context: 1;
+        }
+    }
+
+    /* ── Presence-hover: spatial proximity (3-level cascade) ─────────── */
+    /* For action affordances that need scope → zone → target granularity.
+       Scope = panel-level hover, Zone = row-level hover, Target = the icon.
+       Each level increases opacity. Asymmetric: appear fast, disappear slow. */
+
+    .Δpresence-scope {
+        --presence-scope: 0;
+        &:hover { --presence-scope: 1; }
+    }
+
+    .Δpresence-zone {
+        --presence-zone: 0;
+        &:hover { --presence-zone: 1; }
+    }
+
+    .Δpresence-target {
+        /* Three-level opacity: default 0.1, scope hovered 0.5, zone hovered 1 */
+        opacity: calc(0.1 + var(--presence-scope, 0) * 0.4 + var(--presence-zone, 0) * 0.5);
+    }
+
+    @media (prefers-reduced-motion: no-preference) {
+        /* ── HK-invisible drift (30s) for contextual/hover departure ───── */
+        /* Peripheral rods can't detect gradual chroma changes at this rate.
+           When presence returns, 150ms snap. Asymmetric: fast in, imperceptibly slow out. */
+
+        body:hover .Δdimmer:not(:hover, .Δis-hover) {
+            :--element {
+                &.Δdimmable,
+                & .Δdimmable {
+                    --transition-duration: 30s;
+                }
+            }
+
+            &.Δdim-unobstructive .Δdimmable,
+            .Δdimmable.Δdim-unobstructive {
+                &:--element {
+                    & {
+                        --transition-duration: 30s;
+                    }
+
+                    :--element {
+                        &:not(:--highlighted),
+                        &:--highlighted :--element {
+                            --transition-duration: 30s;
+                        }
+                    }
+                }
+            }
+        }
+
+        /* ── Spatial proximity timing (fast) ──────────────────────────── */
+
+        .Δpresence-target {
+            transition: opacity 150ms ease-in;
+        }
+        .Δpresence-scope:hover .Δpresence-target {
+            transition: opacity 120ms ease-out;
+        }
+        .Δpresence-zone:hover .Δpresence-target {
+            transition: opacity 80ms ease-out;
+        }
+
+        /* ── Consumer transition paths ────────────────────────────────── */
+
+        .Δdimmer {
+            :--element.Δdimmable,
+            .Δdimmable :--element {
+                &:not(:hover) {
+                    --transition-property: color, background-color, border-color, transform, opacity;
+                }
+            }
+
+            &:not(:hover, .Δis-hover) {
+                :--element.Δdimmable,
+                .Δdimmable :--element {
+                    --transition-property: color, border-radius, background-color, border-color, transform, opacity;
+                }
+            }
+        }
+    }
+
+    /* ── Consumer strategies (how to render when presence is absent) ── */
+
+    .Δdimmer:not(:hover, .Δis-hover) {
+        &.Δdim-pale-monochrome .Δdimmable,
+        & .Δdimmable.Δdim-self-pale-monochrome {
+            &:--element {
+                /* Invisible grayscale — zero chroma, lightness to surface.
+                   Peripheral rods register no change (see HK preamble). */
+                --lightness-neutral: calc(var(--🔧lightness-surface));
+                --chroma-emphasis: 0;
+
+                --lightness-emphasis: calc(var(--🔧lightness-surface) + var(--🔧lightness-element-increment));
+                --chroma-emphasis-text: 0;
+                --lightness-emphasis-text: calc(var(--⚙️lightness-emphasis-text) * var(--🎛prominence-text-chroma-modifier));
+            }
+        }
+
+        &.Δdim-unobstructive .Δdimmable,
+        & .Δdimmable.Δdim-unobstructive {
+            /* Ghost mode: transparent accent overlay. Element fades into surface. */
+            &:--element {
+                &,
+                & :--element:not(:--highlighted) {
+                    --🔧background-color: var(--color-emphasis-transparent-interactive);
+                    --border-color: var(--color-emphasis-transparent-interactive);
+                }
+
+                &:--highlighted :--element {
+                    --🔧background-color: revert-layer;
+                    --border-color: revert-layer;
+                }
+            }
+        }
+
+        /* Full opacity 0 — most aggressive. Element disappears entirely. */
+        .Δfully-dimmable {
+            opacity: 0;
+        }
+    }
+
+    /* Select clear hint — × on selected option row, visible on row hover */
+    .Δselect-clear-hint {
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.1s;
+        cursor: pointer;
+        color: var(--⚙️color-text-tertiary);
+        margin-left: auto;
+
+        &:hover {
+            color: var(--⚙️color-text-primary);
+        }
+    }
+
+    :hover > .Δselect-clear-hint {
+        opacity: 1;
+        pointer-events: all;
+    }
+
+    /*
+    Override Firefox's default `::placeholder { opacity: 0.54 }`. Delta's text
+    color tokens already enforce a min-WCAG contrast floor; the user-agent
+    opacity collapses that floor below AA on some surface lightnesses. Resetting
+    to opacity:1 here keeps the contrast guarantee intact for any control inside
+    a Delta-scoped tree.
+
+    Scoped to Delta selectors only — never leaks to non-Delta consumers
+    (e.g. Mercury-emitted user output, which has its own theme.css).
+    */
+    :--element ::placeholder,
+    .Δsurface ::placeholder,
+    .Δoverlay ::placeholder {
+        opacity: 1;
+    }
+}

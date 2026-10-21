@@ -1,0 +1,119 @@
+@property --🔧box-shadow-glow {
+    syntax: "*";
+    initial-value: 0 0 9px -3px transparent;
+    inherits: true;
+}
+
+@property --🔧shadow-subtle {
+    syntax: "*";
+    initial-value: 0 1px 3px black;
+    inherits: true;
+}
+
+@property --🔧shadow-medium {
+    syntax: "*";
+    initial-value: 0 2px 6px black;
+    inherits: true;
+}
+
+@property --🔧shadow-raised {
+    syntax: "*";
+    initial-value: 0 4px 8px black;
+    inherits: true;
+}
+
+@property --🔧background-color {
+    syntax: "<color>";
+    initial-value: transparent;
+    inherits: true;
+}
+
+@property --🔧border-width {
+    syntax: "<length>";
+    initial-value: 0px;
+    inherits: true;
+}
+
+
+@property --🎛lightness {
+    syntax: "<number>";
+    initial-value: 0;
+    inherits: false;
+}
+
+@property --🎛alpha {
+    syntax: "<number>";
+    initial-value: 0;
+    inherits: false;
+}
+
+@property --🎛gap-factor {
+    syntax: "<number>";
+    initial-value: 0;
+    inherits: false;
+}
+
+@property --🎛gap-x {
+    syntax: "<length>";
+    initial-value: 16px;
+    inherits: false;
+}
+
+@property --🎛gap-y {
+    syntax: "<length>";
+    initial-value: 16px;
+    inherits: false;
+}
+@property --🎛padding-x {
+    syntax: "<length>";
+    initial-value: 8px;
+    inherits: false;
+}
+
+@property --🎛padding-y {
+    syntax: "<length>";
+    initial-value: 8px;
+    inherits: false;
+}
+
+@property --🎛font-size {
+    syntax: "<length>";
+    initial-value: 12px;
+    inherits: false;
+}
+
+@property --🎛raw-line-height {
+    syntax: "<length>";
+    initial-value: 18px; /*should be font-size * 1.5 */
+    inherits: false;
+}
+
+@property --🎛border-start-width {
+    syntax: "<length>";
+    initial-value: unset;
+    inherits: false;
+}
+
+@property --🎛border-end-width {
+    syntax: "<length>";
+    initial-value: unset;
+    inherits: false;
+}
+
+@property --🎛border-side-width {
+    syntax: "<length>";
+    initial-value: unset;
+    inherits: false;
+}
+
+@property --🎛border-start-radius {
+    syntax: "<length>";
+    initial-value: unset;
+    inherits: false;
+}
+
+@property --🎛border-end-radius {
+    syntax: "<length>";
+    initial-value: unset;
+    inherits: false;
+}

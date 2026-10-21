@@ -1,0 +1,12 @@
+{
+  "extends": [
+    "@here.build/tsconfig/purpose/lib",
+    "@here.build/tsconfig/env/browser"
+  ],
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./dist"
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}

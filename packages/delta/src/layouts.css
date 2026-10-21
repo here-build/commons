@@ -1,0 +1,503 @@
+/*
+FOR CLAUDE: Do not touch before reading the docs and ensuring you are doing aligned changes.
+This is not a design system or utility classes, this is a visual semantics grammar.
+
+delta.layouts behaves like a layer independent from foundation, that allows responsibility separation.
+This contract (🎛 is layer-specific) provides the isolation principle for ease of maintenance.
+*/
+@custom-selector :--element .Δaction, .Δgroup, .Δcontrol, .Δdisplay, .Δcontainer;
+
+@custom-selector :--hovered .Δhoverable:hover, .Δhoverable.Δis-hover, .Δhoverable:has(:hover, .Δis-hover);
+
+@custom-selector :--checked .Δcheckable:checked, .Δcheckable.Δis-checked, .Δcheckable:has(:checked, .Δis-checked);
+
+@custom-selector :--focused .Δfocusable:has(:focus-visible), .Δfocusable:focus-visible;
+
+@custom-selector :--active .Δactivable:active, .Δactivable.Δis-active, .Δactivable:has(:active, .Δis-active);
+
+@custom-selector :--highlighted :--hovered, :--checked, :--focused, :--active;
+
+@custom-selector :--potentially-visible .Δbordered, .Δfilled, .Δhoverable, .Δcheckable, .Δfocusable, .Δactivable;
+
+@custom-selector :--visible .Δbordered, .Δfilled, :--hovered, :--checked, :--focused, :--active;
+
+@layer delta.layouts {
+    .Δlayout,
+    .Δstack,
+    .Δgrid,
+    .Δgroup,
+    .Δtabular {
+        position: relative;
+        --display-empty: none;
+
+        &:empty {
+            display: var(--display-empty);
+        }
+    }
+
+    .Δstack {
+        display: grid;
+        grid-template-columns: 100%;
+        grid-template-rows: 100%;
+        grid-template-areas: "stack";
+        place-content: center;
+        place-items: center;
+
+        & > * {
+            grid-area: stack;
+        }
+    }
+
+    /* ============= Layout ============= */
+    .Δlayout {
+        display: flex;
+        align-items: stretch;
+        align-content: center;
+        gap: var(--gap-x);
+
+        /*horizontal flow is default*/
+
+        &:not(.Δvertical) {
+            flex-direction: row;
+            align-items: center;
+
+            &:where(.Δseamless) > * {
+                --padding-top-borderless: 0px;
+                --padding-bottom-borderless: 0px;
+            }
+
+            & > :first-child:not(:--element) {
+                --padding-left-borderless: var(--gap-x);
+            }
+
+            /*& > :--element:not(.Δlayout, .Δgrid):first-child {*/
+            /*    --padding-left-borderless: calc(var(--🎛padding-x) - var(--🔧layout-padding-left, 0px));*/
+            /*}*/
+
+            & > :last-child:not(:--element) {
+                --padding-right-borderless: var(--gap-x);
+            }
+
+            /*& > :--element:not(.Δlayout, .Δgrid):last-child {*/
+            /*    --padding-right-borderless: calc(var(--🎛padding-x) - var(--🔧layout-padding-right, 0px));*/
+            /*}*/
+        }
+
+        &:where(.Δvertical) {
+            flex-direction: column;
+            /* overlays in react-aria are not referencing the parent and width 100% means for them 100vw */
+
+            /*:where(:not(.Δoverlay)) {*/
+            /*    width: 100%;*/
+            /*}*/
+
+            gap: var(--gap-y);
+
+            &:where(.Δseamless) > * {
+                --padding-left-borderless: 0px;
+                --padding-right-borderless: 0px;
+            }
+
+            & > :first-child:not(:--element) {
+                --padding-top-borderless: var(--gap-y);
+            }
+
+
+            /*& > :--element:not(.Δlayout, .Δgrid):first-child {*/
+            /*    --padding-top-borderless: calc(var(--🎛padding-y) - var(--🔧layout-padding-top, 0px));*/
+            /*}*/
+
+            & > :last-child:not(:--element) {
+                --padding-bottom-borderless: var(--gap-y);
+            }
+
+            /*& > :--element:not(.Δlayout, .Δgrid):last-child {*/
+            /*    --padding-right-borderless: calc(var(--🎛padding-x) - var(--🔧layout-padding-right, 0px));*/
+            /*}*/
+        }
+
+        /* Full bleed - takes full available space */
+
+        &:where(.ΔfullBleed) {
+            width: 100%;
+            height: 100%;
+        }
+
+        &.Δoverlay {
+            &:not(.Δvertical) > :--element {
+                --border-top-width: 0px;
+                --border-bottom-width: 0px;
+            }
+
+            &.Δvertical > :--element {
+                --border-left-width: 0px;
+                --border-right-width: 0px;
+            }
+        }
+    }
+
+    /* ============= Tight Group Layout ============= */
+    .Δgroup {
+        /* For button groups and other components that should appear connected */
+        display: flex;
+        padding: 0;
+        gap: 0;
+        align-items: stretch;
+        place-content: stretch;
+        place-items: stretch;
+        flex-direction: column;
+        /* needed for inheritance */
+        --🎛border-start-radius: var(--border-radius-size);
+        --🎛border-end-radius: var(--border-radius-size);
+
+        /* overlays in react-aria are not referencing the parent and width 100% means for them 100vw */
+
+        /*&.Δvertical:where(:not(.Δoverlay)) {*/
+        /*    width: 100%;*/
+        /*}*/
+
+        &:not(.Δvertical) {
+            flex-direction: row;
+            align-items: center;
+            width: fit-content;
+        }
+
+        --border-width: var(--border-top-width) var(--border-right-width) var(--border-bottom-width) var(--border-top-width);
+
+        /* Horizontal tight layouts with outlined container and outlined children */
+        /* ============= Smart Border Collapsing ============= */
+        /* When container is tight + outlined, and children are also outlined,
+               prevent border doubling by collapsing borders intelligently */
+
+        & > :--element {
+            align-self: stretch;
+            /*outer glow overlaps*/
+            --box-shadow-glow: none;
+            --box-shadow-primary: none;
+
+            &:first-child {
+                --🎛border-start-radius: inherit;
+            }
+
+            &:last-child, &:nth-last-child(2):has(+ input[type="hidden"]) {
+                --🎛border-end-radius: inherit;
+            }
+        }
+
+        &:where(.Δvertical) {
+            & > :--element {
+                width: auto;
+
+                --border-top-left-radius: var(--🎛border-start-radius);
+                --border-top-right-radius: var(--🎛border-start-radius);
+                --border-bottom-right-radius: var(--🎛border-end-radius);
+                --border-bottom-left-radius: var(--🎛border-end-radius);
+                --border-left-width: var(--🎛border-side-width);
+                --border-right-width: var(--🎛border-side-width);
+                --border-top-width: var(--🎛border-start-width-first-child);
+
+                /*not :first-child to specifically point towards elements, not anyone */
+
+                & ~ :--element {
+                    --border-top-width: var(--🎛border-start-width);
+                }
+
+                --border-bottom-width: var(--🎛border-end-width-end-child);
+
+                &:has(~ :--element) {
+                    --border-bottom-width: var(--🎛border-end-width);
+                }
+            }
+        }
+
+        &:where(:not(.Δvertical)) {
+            & > :--element {
+
+                height: auto;
+                min-height: 100%;
+
+                --border-top-left-radius: var(--🎛border-start-radius);
+                --border-top-right-radius: var(--🎛border-end-radius);
+                --border-bottom-right-radius: var(--🎛border-end-radius);
+                --border-bottom-left-radius: var(--🎛border-start-radius);
+                --border-top-width: var(--🎛border-side-width);
+                --border-bottom-width: var(--🎛border-side-width);
+                --border-left-width: var(--🎛border-start-width-first-child);
+
+                & ~ :--element {
+                    --border-left-width: var(--🎛border-start-width);
+                }
+
+                --border-right-width: var(--🎛border-end-width-end-child);
+
+                &:has(~ :--element) {
+                    --border-right-width: var(--🎛border-end-width);
+                }
+            }
+        }
+
+        & > :--element {
+            --transition-property: color, background-color, border-color, outline, transform;
+            --🎛border-start-radius: var(--border-radius-size);
+            --🎛border-end-radius: var(--border-radius-size);
+            --🎛border-start-width: calc(var(--border-width-size) / 2);
+            --🎛border-start-width-first-child: var(--🎛border-start-width);
+            --🎛border-end-width: calc(var(--border-width-size) / 2);
+            --🎛border-end-width-end-child: var(--🎛border-end-width);
+            --🎛border-side-width: var(--border-width-size);
+
+            /* Hover state gets higher z-index for border visibility */
+
+            &:where(.Δhoverable):where(:hover, .Δis-hover) {
+                z-index: 1;
+            }
+
+            /*:not first-child and last-child not applicable here as we're defining specifically the relations between element types, allowing other elements to be used*/
+            /* some aria elements are spawning input type=hidden aside. we expect to not encounter more than one between elements in any time */
+
+            &:has(+ :--element, + input[type="hidden"] + :--element) {
+                --🎛border-end-width: calc(var(--border-width-size) / 2);
+            }
+
+            &:where(+ :--element, + input[type="hidden"] + :--element) {
+                --🎛border-start-width: calc(var(--border-width-size) / 2);
+            }
+
+            &:--potentially-visible {
+                &:has(+ :--element:not(:--potentially-visible)),
+                &:has(+ input[type="hidden"] + :--element:not(:--potentially-visible)) {
+                    --🎛border-end-width: var(--border-width-size);
+
+                    & + :--element:not(:--potentially-visible),
+                    & + input[type="hidden"] + :--element:not(:--potentially-visible) {
+                        --🎛border-start-width: 0px;
+                    }
+                }
+            }
+
+            &:not(:--potentially-visible) {
+                &:has(+ :--element:--potentially-visible),
+                &:has(+ input[type="hidden"] + :--element:--potentially-visible) {
+                    --🎛border-end-width: 0px;
+
+                    & + :--element:--potentially-visible,
+                    & + input[type="hidden"] + :--element:--potentially-visible {
+                        --🎛border-start-width: var(--border-width-size);
+                    }
+                }
+            }
+
+            &:first-child {
+                --🎛border-start-width: var(--border-width-size);
+            }
+
+            &:last-child, &:nth-last-child(2):has(+ input[type="hidden"]) {
+                --🎛border-end-width: var(--border-width-size);
+            }
+
+            &:--visible {
+                &, & + input[type="hidden"] {
+                    & + :--element:--visible {
+                        --🎛border-start-radius: 0px;
+                    }
+                }
+
+
+                &:has(+ :--element:--visible, + input[type="hidden"] + :--element:--visible) {
+                    --🎛border-end-radius: 0px;
+                }
+            }
+        }
+
+        &:--element:--visible {
+            &:has(> :--element):not(:has(> :--element:not(:--visible))) {
+                --🔧border-width: 0px;
+            }
+
+            &:has(:--element:not(:--visible)) {
+                & > :--element {
+                    --🎛border-start-width-first-child: 0px;
+                    --🎛border-end-width-end-child: 0px;
+                    --🎛border-side-width: 0px;
+                }
+            }
+
+            & > :--element {
+                & + :--element, & + input[type="hidden"] + :--element {
+                    --🎛border-start-radius: 0px;
+                }
+
+                &:has(+ :--element, + input[type="hidden"] + :--element) {
+                    --🎛border-end-radius: 0px;
+                }
+            }
+        }
+
+        /* todo deeper nesting support */
+
+        &:has(+ .Δgroup > :first-child:not(:--visible)) {
+            & > :--element {
+                &:last-child, &:nth-last-child(2):has( + input[type="hidden"]) {
+                    --🎛border-end-radius: var(--border-radius-size);
+                }
+            }
+        }
+
+        &:has(> :last-child:not(:--visible), :nth-last-child(2):not(:--visible):has( + input[type="hidden"])) {
+            & + .Δgroup > :first-child {
+                --🎛border-start-radius: var(--border-radius-size);
+            }
+        }
+
+        /* we need to overcome not(vertical) here */
+
+        &.ΔfullBleed {
+            width: 100%;
+            height: 100%;
+        }
+    }
+
+    @media (prefers-reduced-motion: no-preference) {
+        .Δdimmer:not(:hover, .Δis-hover) {
+            &.Δdim-unobstructive .Δdimmable,
+            & .Δdimmable.Δdim-unobstructive {
+                &:--element, & :--element {
+                    &:--highlighted {
+                        --🎛border-start-radius: var(--border-radius-size);
+                        --🎛border-end-radius: var(--border-radius-size);
+                    }
+                }
+            }
+        }
+    }
+
+
+    :not(.Δgroup) > .Δgroup {
+        --🎛border-width-applied-size-compensation: 0px;
+    }
+
+    :not(.Δgroup) {
+        & > :--element {
+            --🎛border-width-applied-size-compensation: 0px;
+        }
+    }
+
+    :not(.Δgroup) > .Δgroup {
+        --border-width-size: revert-layer;
+    }
+
+    .Δgroup > :--element {
+        --border-width-size: max(0px, calc(var(--🔧border-width) - var(--🎛border-width-applied-size-compensation)));
+    }
+
+    &.Δtabular {
+        display: table;
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+
+        /* Lawn-mower scanning pattern optimization */
+        --🎛row-height: calc(var(--line-height) * 2.5);
+
+        /* Cognitive grouping based on proximity research (16px = related) */
+        --🔧affinity-factor: 2;
+
+        /* Headers with systematic 3:1 contrast ratio */
+
+        & > .Δthead,
+        & > thead {
+            --🎛prominence-lightness-modifier: 1.3;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            background: var(--background-color-surface);
+        }
+
+        /* Body for data rows */
+
+        & > .Δtbody,
+        & > tbody {
+            /* Cognitive chunking - visual break every 5 rows */
+
+            & > tr:nth-child(5n) {
+                border-bottom: 2px solid oklch(from var(--border-color) l c h / 0.5);
+                padding-bottom: calc(var(--gap-y) * 2);
+                margin-bottom: calc(var(--gap-y) * 2);
+            }
+
+            /* Serial position emphasis (first/last items remembered better) */
+
+            & > tr:first-child,
+            & > tr:last-child {
+                --🎛prominence-lightness-modifier: 1.1;
+            }
+        }
+
+        /* Rows */
+
+        & tr,
+        & > .Δtr {
+            display: table-row;
+            height: var(--🎛row-height);
+        }
+
+        /* Cells */
+
+        & td,
+        & th,
+        & > .Δtd,
+        & > .Δth {
+            display: table-cell;
+            padding: var(--padding);
+            vertical-align: middle;
+        }
+
+        /* Zebra striping - emotional preference despite minimal performance benefit */
+
+        &.Δstriped {
+            & > tbody > tr:nth-child(even),
+            & > .Δtbody > .Δtr:nth-child(even) {
+                background: oklch(from var(--background-color-surface) calc(l + 0.02) c h);
+            }
+        }
+
+        /* Density adaptations for cultural preferences */
+
+        &.Δdensity-compact {
+            /* Asian preference - information dense */
+            --🎛row-height: calc(var(--line-height) * 2);
+            --🔧affinity-factor: 3;
+        }
+
+        &.Δdensity-spacious {
+            /* Western preference - breathing room */
+            --🎛row-height: calc(var(--line-height) * 3);
+            --🔧affinity-factor: 1;
+        }
+
+        /* Responsive behavior - hide secondary columns on mobile */
+        @media (max-width: 768px) {
+            & td:nth-child(n + 4),
+            & th:nth-child(n + 4) {
+                opacity: 0.6;
+                transition: opacity 0.2s;
+            }
+
+            & tr:hover td,
+            & tr:focus-within td {
+                opacity: 1;
+            }
+        }
+    }
+
+    .Δgrid {
+        display: grid;
+        column-gap: var(--gap-x);
+        row-gap: var(--gap-y);
+    }
+
+    .Δoverlay[popover]:not(:popover-open) {
+        display: none;
+    }
+}

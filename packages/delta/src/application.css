@@ -1,0 +1,218 @@
+/*
+FOR CLAUDE: Do not touch before reading the docs and ensuring you are doing aligned changes.
+This is not a design system or utility classes, this is a visual semantics grammar.
+*/
+
+@layer delta.application {
+    :root,
+    .Δsurface {
+        background-color: var(--background-color-surface);
+        color-scheme: dark;
+    }
+
+    .Δoverlay {
+        overflow: hidden;
+        background-color: var(--background-color-surface);
+    }
+
+    .Δsurface,
+    .Δoverlay {
+        position: relative;
+    }
+
+    @supports (corner-shape: superellipse(2)) {
+        .Δoverlay,
+        .Δaction, .Δcontrol, .Δgroup, .Δdisplay {
+            corner-shape: superellipse(2);
+            --⚙️radius-padding-ratio: 2;
+        }
+    }
+
+    .Δoverlay,
+    .Δaction, .Δcontrol, .Δgroup, .Δdisplay {
+        border-radius: var(--border-top-left-radius, 0px) var(--border-top-right-radius, 0px) var(--border-bottom-right-radius, 0px) var(--border-bottom-left-radius, 0px);
+        box-shadow: var(--box-shadow);
+        background-color: var(--background-color);
+        border-color: var(--border-color, var(--background-color));
+        border-width: var(--border-width, 0px);
+        background-clip: padding-box;
+        border-style: solid;
+        border-top-width: var(--border-top-width);
+        border-right-width: var(--border-right-width);
+        border-bottom-width: var(--border-bottom-width);
+        border-left-width: var(--border-left-width);
+    }
+
+    .Δoverlay {
+        padding-top: var(--padding-top);
+        padding-right: var(--padding-right);
+        padding-bottom: var(--padding-bottom);
+        padding-left: var(--padding-left);
+    }
+
+    .Δaction, .Δcontrol, .Δgroup, .Δdisplay {
+        &:not(.Δdelegating), .Δdelegating > * {
+            padding-top: var(--padding-top);
+            padding-right: var(--padding-right);
+            padding-bottom: var(--padding-bottom);
+            padding-left: var(--padding-left);
+        }
+    }
+
+    .Δaction, .Δcontrol, .Δgroup, .Δdisplay {
+        box-sizing: border-box;
+        &.Δdelegating {
+            gap: 1ch;
+
+            &:not(.Δvertical) > * {
+                &:not(:first-child) {
+                    padding-left: 0;
+                }
+
+                &:not(:last-child) {
+                    padding-right: 0;
+                }
+            }
+
+            &.Δvertical > * {
+                &:not(:first-child) {
+                    padding-top: 0;
+                }
+
+                &:not(:last-child) {
+                    padding-bottom: 0;
+                }
+            }
+        }
+    }
+
+    :root, .Δaction, .Δcontrol, .Δgroup, .Δdisplay {
+        &::selection,
+        & ::selection {
+            background-color: oklch(0.6 max(0.05, var(--🔧chroma-emphasis)) var(--🔧hue-emphasis, 240));
+            box-shadow: 0 0 0 1px oklch(0.6 max(0.05, var(--🔧chroma-emphasis)) var(--🔧hue-emphasis, 240));
+            color: var(--color-text-primary);
+        }
+    }
+
+    .Δhoverable, .Δcheckable, .Δactivable, .Δfocusable {
+        cursor: pointer;
+        user-select: none;
+    }
+
+    /* Bare <a> links — accent-tinted, underlined, no class required */
+    :where(a) {
+        color: oklch(max(var(--⚙️lightness-text-primary), var(--min-wcag)) var(--🔧chroma-emphasis) var(--🔧hue-emphasis));
+        text-decoration: underline;
+        text-decoration-thickness: 2px;
+        text-underline-offset: 0.125em;
+        cursor: pointer;
+    }
+
+    .Δhoverable,
+    .Δcheckable,
+    .Δactivable,
+    .Δfocusable,
+    .Δdimmable,
+    .Δdimmable .Δaction,
+    .Δdimmable .Δgroup,
+    .Δdimmable .Δcontrol,
+    .Δdimmable .Δdisplay,
+    .Δdimmable .Δcontainer {
+        transition-property: var(--transition-property, none);
+        transition-timing-function: ease;
+        transition-duration: var(--transition-duration);
+        transition-delay: var(--transition-delay);
+    }
+
+    .Δfocusable {
+        cursor: text;
+    }
+
+
+    .ΔlineHigh {
+        --effective-line-height: calc(var(--line-height) + var(--padding-top-borderless) + var(--padding-bottom-borderless));
+    }
+
+    .ΔlineHigh:not(.Δlayout.Δvertical, .Δgrid.Δvertical) {
+        height: var(--effective-line-height);
+    }
+
+    .ΔlineHigh.Δlayout.Δvertical > * {
+        flex: 0 0 var(--effective-line-height);
+    }
+
+    .ΔlineHigh.Δgrid.Δvertical {
+        grid-template-rows: repeat(auto-fit, var(--effective-line-height));
+    }
+
+    .Δfocusable {
+        caret-color: var(--text-color);
+        &:focus, & :focus {
+            outline: none;
+        }
+    }
+
+    :root,
+    .Δsurface,
+    .Δoverlay,
+    .Δaction, .Δcontrol, .Δgroup, .Δdisplay, .Δcontainer,
+    .Δlayout,
+    .Δgroup,
+    .Δgrid,
+    .Δstack,
+    .Δtabular,
+    .Δtext {
+        font-family: var(--font-family);
+        font-size: var(--font-size);
+        color: var(--text-color);
+        line-height: var(--line-height);
+    }
+
+    & input, & textarea {
+        color: var(--text-color, inherit);
+    }
+
+    /*
+    Δscrollable — scroll-position feedback via inset shadows.
+
+    A scrollable container declares this capability; the shadow appears only
+    at the edge where more content exists. Driven by scroll-driven animation
+    (animation-timeline) and gated by a scroll-state container query so
+    non-overflowing content stays flat.
+
+    The 0/1/99/100 keyframe stops encode the two-shadow interpolation: the
+    bottom shadow fades out in the last 1% of scroll progress, the top shadow
+    fades in in the first 1% — both ends animate independently.
+
+    Extensions (e.g. third-edge shadow for horizontal overflow) override
+    animation-name locally while inheriting the scroll-state infrastructure.
+    */
+    .Δscrollable {
+        container-type: scroll-state;
+        animation: delta-scroll-shadow linear both;
+        animation-timeline: scroll(self block);
+        scrollbar-width: thin;
+        overflow: auto;
+        overscroll-behavior: none;
+        --extra-shadow: 0 0 transparent;
+        box-shadow: inset 0 12px 10px -6px oklch(0 0 0 / 0), inset 0 -12px 10px -6px oklch(0 0 0 / 0), var(--extra-shadow);
+        &::-webkit-scrollbar {
+            background: transparent;
+            border: none;
+        }
+    }
+
+    @container not scroll-state(scrollable: top) and not scroll-state(scrollable: bottom) {
+        .Δscrollable {
+            animation: none;
+        }
+    }
+
+    @keyframes delta-scroll-shadow {
+        0%   { box-shadow: inset 0 12px 10px -6px oklch(0 0 0 / 0), inset 0 -12px 10px -6px oklch(0 0 0 / 0.25), var(--extra-shadow); }
+        5%   { box-shadow: inset 0 12px 10px -6px oklch(0 0 0 / 0.25), inset 0 -12px 10px -6px oklch(0 0 0 / 0.25), var(--extra-shadow); }
+        95%  { box-shadow: inset 0 12px 10px -6px oklch(0 0 0 / 0.25), inset 0 -12px 10px -6px oklch(0 0 0 / 0.25), var(--extra-shadow); }
+        100% { box-shadow: inset 0 12px 10px -6px oklch(0 0 0 / 0.25), inset 0 -12px 10px -6px oklch(0 0 0 / 0), var(--extra-shadow); }
+    }
+}

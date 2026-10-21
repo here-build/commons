@@ -1,0 +1,93 @@
+@property --⚙️tracking-base {
+    syntax: "<number>";
+    /*
+    Default: 0.01. Natural letter spacing at scale factor 0 (base font size) — near-zero, barely
+    perceptible. The tracking formula produces negative values at small scales (tighter tracking)
+    and positive at large scales (more open). This is the neutral point: small interface labels
+    tighten up (easier to scan), display headings open up (easier to read sparse words).
+    Tune: toward 0.03-0.05 if the base font needs more breathing room. 0 for fonts with generous
+    built-in tracking.
+    */
+    initial-value: 0.01;
+    inherits: false;
+}
+
+@property --⚙️tracking-constant {
+    syntax: "<number>";
+    /*
+    Default: 3. Controls how steeply tracking changes across scale steps. Higher = more dramatic
+    tightening at small sizes and opening at display sizes. The formula is:
+      tracking = (base + constant) × 1px × pow(1.25, factor) − constant × 1px
+    At factor 0 this reduces to base × 1px. The constant is the "leverage" — it amplifies the
+    pow(1.25, factor) term relative to the constant offset.
+    Tune: toward 5 for more dramatic size-responsive tracking (very tight captions, very open
+    headings). Toward 1 for a flatter response where all sizes have similar tracking.
+    */
+    initial-value: 3;
+    inherits: false;
+}
+
+@property --⚙️weight-dark-surface {
+    syntax: "<number>";
+    /*
+    Font weight on dark surfaces. Gamma correction (sRGB γ=2.2) causes light text
+    on dark backgrounds to appear bolder than the numeric weight implies — strokes spread into
+    surrounding pixels. Lighter weight compensates, keeping the text at intended visual weight.
+    Tune: 350-380 for fonts with very thin strokes that spread aggressively on dark backgrounds.
+    400 for fonts that handle dark themes without visual weight shift.
+    Lowered from 420 to 360 for Nunito Sans/Source Sans 3 pairing — rounder heading font
+    needs lighter base to avoid heavy appearance, especially at display sizes where
+    pow(1.25, factor) amplifies the base weight significantly.
+    */
+    initial-value: 360;
+    inherits: false;
+}
+
+@property --⚙️weight-light-surface {
+    syntax: "<number>";
+    /*
+    Font weight on light surfaces. No gamma-induced spreading in this direction,
+    so weight can be slightly heavier for proper visual substance. The formula linearly interpolates
+    between dark and light surface weights based on actual surface lightness, so elements on
+    mid-lightness surfaces get proportionally blended weight.
+    Lowered from 480 to 420 to match the dark-surface reduction — keeps the delta consistent
+    (60pt spread) while bringing overall weight down for the Nunito Sans heading font.
+    */
+    initial-value: 420;
+    inherits: false;
+}
+
+@property --⚙️recursive-casl-base {
+    syntax: "<number>";
+    /*
+    Default: 0. Recursive font CASL axis — 0 = mechanical/technical letterforms,
+    1 = casual/hand-written. Technical tool context default. Override to add personality
+    in consumer-facing contexts or code-adjacent modes.
+    */
+    initial-value: 0;
+    inherits: false;
+}
+
+@property --⚙️recursive-mono-base {
+    syntax: "<number>";
+    /*
+    Default: 0. Recursive font MONO axis — 0 = proportional, 1 = monospace.
+    Proportional default for UI text. Code blocks set their own --font-family override.
+    */
+    initial-value: 0;
+    inherits: false;
+}
+
+@property --⚙️font-baseline-compensation-factor {
+    syntax: "<number>";
+    /*
+    Default: 0.03. Optical baseline sits slightly above the mathematical center of the line box.
+    This factor × line-height = vertical offset applied to align rendered text to its visual
+    baseline rather than the box center. Value is font-dependent — Recursive specifically needs
+    a small correction.
+    Tune: 0 for fonts with well-centered baselines. Increase if text appears to float above
+    its bounding box. Decrease if it appears to sink.
+    */
+    initial-value: 0.03;
+    inherits: false;
+}

@@ -1,0 +1,31 @@
+/*
+Delta uses minimal emoji semantics for variable grouping by purpose:
+
+--⚙️ - global configuration variables. Should be only adjusted on :root level, never overridden in scope.
+
+--🎛 - "tuning" variables, are only used within same element. Represent "shortcuts" for clearer declarations or
+reusable entities. Best example is emphasis:
+--color-emphasis: oklch(var(--⚙️lightness-default) var(--🎛hue-emphasis) var(--⚙️chroma-emphasis));
+--color-emphasis-text: oklch(var(--⚙️lightness-emphasis-text) var(--🎛hue-emphasis) var(--⚙️chroma-emphasis));
+
+&.Δemphasis-success {
+    --🎛hue-emphasis: var(--⚙️hue-emphasis-success);
+}
+
+--🔧 - scoped variables; currently only used in surface calculations to propagate surface default lightness.
+*/
+
+/* Font imports */
+@import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,200..900;1,200..900&family=Nunito+Sans:ital,opsz,wght@0,6..12,200..1000;1,6..12,200..1000&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap');
+
+/* Property declarations for type safety and preventing calc() crashes */
+@import "./properties-outputs.css";
+
+@import "./factors.css";
+@import "./foundation.css";
+@import "./application.css";
+@import "./layouts.css";
+@import "./typography.css";
+
+@layer legacy-base, delta.configuration, delta.configuration-tweaks, delta.factors, delta.application, delta.typography, delta.layouts;

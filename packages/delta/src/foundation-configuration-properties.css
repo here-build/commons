@@ -1,0 +1,184 @@
+@property --⚙️grid-step {
+    syntax: "<length>";
+    /*
+    Default: 4px. Half of the 8pt industry standard — aligns perfectly at 1.5x, 2x, 3x display
+    densities without half-pixel offsets, while giving finer resolution than 8px for compact UIs.
+    Tune: 2px on 2x retina for sub-pixel-accurate spacing; 8px for coarse touch-first UIs where
+    every value should be a full "point" on the 8pt grid. Never use 3px or 5px — odd grids break
+    at all common display densities.
+    */
+    initial-value: 4px;
+    inherits: false;
+}
+
+@property --delta-global-field-label-width {
+    syntax: "<length>";
+    /* Sidebar field label alignment constant - ensures visual coherence across panels */
+    initial-value: 90px;
+    inherits: false;
+}
+
+@property --⚙️lightness-increment {
+    syntax: "<number>";
+    initial-value: 0.15;
+    inherits: false;
+}
+
+@property --⚙️lightness-increment-filling {
+    syntax: "<number>";
+    initial-value: 0.25;
+    inherits: false;
+}
+
+@property --⚙️lightness-text-primary {
+    syntax: "<number>";
+    /*
+    Default: 0.96. Near-white avoids halation on dark backgrounds (the light-bleed effect
+    affecting ~50% of users with astigmatism) while exceeding the 15.8:1 contrast ratio
+    recommended for dark themes. Pure white (1.0) reads harsher without meaningful contrast gain.
+    Tune: toward 1.0 for WCAG AAA high-contrast mode. Toward 0.85 for softer, print-like dark themes
+    where eye strain over long sessions is a priority over maximum legibility.
+    */
+    initial-value: 0.96;
+    inherits: false;
+}
+
+@property --⚙️lightness-text-secondary {
+    syntax: "<number>";
+    /*
+    Default: 0.70. Creates ≈73% ratio to primary — visible hierarchy without losing legibility.
+    At 0.70 on 0.04 canvas, contrast is above WCAG AA (4.5:1) but below AAA (7:1).
+    Tune: toward 0.80 for WCAG AAA secondary text. Toward 0.60 for more dramatic hierarchy
+    where secondary info should feel clearly subordinate rather than just "less prominent."
+    */
+    initial-value: 0.70;
+    inherits: false;
+}
+
+@property --⚙️lightness-text-tertiary {
+    syntax: "<number>";
+    /*
+    Default: 0.50. Supporting/metadata text tier — approximately 7:1 contrast on 0.04 canvas,
+    WCAG AAA for body text but clearly below primary and secondary layers.
+    Tune: toward 0.60 to keep tertiary text within WCAG AA range on lighter surfaces.
+    Research establishes three readable tiers: primary 7:1+, secondary 4.5-6:1, supporting 3-4.5:1.
+    */
+    initial-value: 0.5;
+    inherits: false;
+}
+
+@property --⚙️lightness-text-disabled {
+    syntax: "<number>";
+    /*
+    Default: 0.35. Intentionally below WCAG contrast minimums — failing contrast communicates
+    "not available" through reduced legibility. This is one of the few cases where violating
+    contrast standards is the correct semantic signal.
+    Tune: toward 0.45 if accessibility policy requires disabled elements to remain legible
+    (some enterprise/government standards require this with a separate visual disabled indicator).
+    */
+    initial-value: 0.35;
+    inherits: false;
+}
+
+@property --⚙️lightness-emphasis-text {
+    syntax: "<number>";
+    /*
+    Default: 0.40. Starting lightness for text on filled/colored backgrounds before per-hue
+    Helmholtz-Kohlrausch compensation is applied in foundation.css. Colored backgrounds appear
+    perceptually brighter than neutral backgrounds at equal lightness (HK effect), so text starts
+    darker than it would on gray.
+    Tune: toward 0.35 for darker text on vivid accent colors where HK effect is strong.
+    Toward 0.45 for softer contrast on subtle emphasis colors.
+    */
+    initial-value: 0.4;
+    inherits: false;
+}
+
+@property --⚙️type-base {
+    syntax: "<length>";
+    /*
+    Default: 12px. Base of the Major Third (×1.25) exponential type scale. Produces:
+    scale -2=7.68px, -1=9.6px, 0=12px, 1=15px, 2=18.75px. Compact default reflects
+    information-dense design tool context.
+    Tune: 14px or 16px for consumer-facing or reading-heavy applications where the scale
+    should start at comfortable body text size. The scale relationship (Major Third) stays fixed;
+    only the starting point shifts.
+    */
+    initial-value: 12px;
+    inherits: true;
+}
+
+@property --⚙️leading-base-ratio {
+    syntax: "<number>";
+    /*
+    Default: 1.5. Center of the optimal 1.4-1.6 range for sans-serif body text. The reciprocal
+    line-height model uses this as the ceiling: at base font size ratio is 1.5; as font grows,
+    ratio naturally decreases toward 1.4 for display text, matching how larger type can tolerate
+    tighter leading.
+    Tune: 1.6 for dyslexia-friendly or reading-optimized interfaces. 1.3 for ultra-compact
+    data-dense UIs where vertical space is more valuable than reading comfort.
+    */
+    initial-value: 1.5;
+    inherits: false;
+}
+
+@property --⚙️border-width {
+    syntax: "<length>";
+    initial-value: 1px;
+    inherits: false;
+}
+
+@property --⚙️radius-padding-ratio {
+    syntax: "<number>";
+    /*
+    Default: 0.5. Border radius is computed as padding-y × ratio + border-width. The ratio creates
+    "nested card harmony": outer_radius naturally accounts for inner element's visual boundary
+    (outer_radius ≈ inner_radius + padding). 0.5 targets "rounded but not pill-shaped."
+    Tune: 0 for sharp-cornered enterprise/data-dense UIs. 0.75-1.0 for rounder, friendlier consumer
+    products. 999px is a valid override for pill shapes via .Δshape-pill.
+    */
+    initial-value: 0.5;
+    inherits: false;
+}
+
+@property --⚙️focus-glow-lightness {
+    syntax: "<number>";
+    /*
+    Default: 0.7. Focus rings must be visible on every surface (0.04 canvas through 0.24 overlay)
+    and every emphasis color including near-zero-chroma neutral elements. 0.7 is bright enough to
+    contrast all dark surfaces without saturating or causing halation.
+    Tune: 0.8+ for high-contrast accessibility modes. 0.6 for darker, more subtle focus indication
+    on interfaces where focus rings feel too prominent at default.
+    */
+    initial-value: 0.7;
+    inherits: false;
+}
+
+@property --⚙️shadow-offset-subtle {
+    syntax: "<number>";
+    /*
+    Shadow offsets are negative lightness deltas: surface lightness + offset = shadow color.
+    Dark themes cannot use traditional box-shadows (they vanish into dark backgrounds), so shadows
+    are expressed as OKLCH colors darker than the current surface. Negative offset = darker shadow.
+    Each tier exceeds the 7.4% Just Noticeable Difference threshold for brightness perception.
+
+    Default -0.08 subtle / -0.12 medium / -0.18 raised: three elevation tiers.
+    Tune: compress the range (e.g. -0.06/-0.09/-0.13) for flatter, more minimal aesthetics.
+    Expand (e.g. -0.10/-0.16/-0.24) for stronger shadow drama. Light themes would flip these
+    to positive values (shadows lighter than surface = inverted elevation model).
+    */
+    initial-value: -0.08;
+    inherits: false;
+}
+
+@property --⚙️shadow-offset-medium {
+    syntax: "<number>";
+    initial-value: -0.12;
+    inherits: false;
+}
+
+@property --⚙️shadow-offset-raised {
+    syntax: "<number>";
+    initial-value: -0.18;
+    inherits: false;
+}

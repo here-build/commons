@@ -1,0 +1,193 @@
+/*
+DELTA PUBLIC PROPERTIES LAYER
+============================
+All of those variables are expected to be reset at each matching primitive node and be used publicly within the primitive
+*/
+
+
+
+
+
+
+
+/* Border System */
+
+@property --border-width-size {
+    syntax: "<length>";
+    initial-value: 0px;
+    inherits: true;
+}
+
+@property --border-top-width {
+    syntax: "<length>";
+    initial-value: 0px;
+    inherits: true;
+}
+
+@property --border-right-width {
+    syntax: "<length>";
+    initial-value: 0px;
+    inherits: true;
+}
+
+@property --border-bottom-width {
+    syntax: "<length>";
+    initial-value: 0px;
+    inherits: true;
+}
+
+@property --border-left-width {
+    syntax: "<length>";
+    initial-value: 0px;
+    inherits: true;
+}
+
+/* Border Radius System */
+@property --border-radius-size {
+    syntax: "<length>";
+    initial-value: 4px;
+    inherits: true;
+}
+
+@property --font-sans {
+    syntax: "*";
+    initial-value: "Source Sans 3",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    system-ui,
+    "Helvetica Neue",
+    Arial,
+    sans-serif;
+    inherits: true;
+}
+
+@property --font-heading {
+    syntax: "*";
+    initial-value: "Nunito Sans",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    system-ui,
+    "Helvetica Neue",
+    Arial,
+    sans-serif;
+    inherits: true;
+}
+
+@property --font-mono {
+    syntax: "*";
+    initial-value: "JetBrains Mono", ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, Monaco, Consolas, monospace;
+    inherits: true;
+}
+
+@property --font-family {
+    syntax: "*";
+    initial-value: "Source Sans 3",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    system-ui,
+    "Helvetica Neue",
+    Arial,
+    sans-serif;
+    inherits: true;
+}
+
+@property --font-size {
+    syntax: "<length>";
+    initial-value: 12px;
+    inherits: true;
+}
+
+@property --line-height {
+    syntax: "<length>";
+    initial-value: 24px;
+    inherits: true;
+}
+
+@property --letter-spacing {
+    syntax: "<length>";
+    initial-value: 0px;
+    inherits: true;
+}
+
+@property --font-weight {
+    syntax: "<number>";
+    initial-value: 400;
+    inherits: true;
+}
+
+@property --icon-size {
+    syntax: "<length>";
+    initial-value: 24px;
+    inherits: true;
+}
+
+/*
+Chrome refers to the persistent UI framework elements that surround the main content area,
+such as toolbars, navigation strips, sidebars, and headers. This is standard height for
+application chrome elements, providing consistent visual rhythm and adequate touch targets.
+*/
+@property --chrome-size {
+    syntax: "<length>";
+    initial-value: 36px;
+    inherits: true;
+}
+
+@property --background-color-surface {
+    syntax: "<color>";
+    initial-value: unset;
+    inherits: true;
+}
+
+@property --transition-property {
+    syntax: "*";
+    initial-value: none;
+    inherits: true;
+}
+
+/* Box Shadow Variables */
+@property --box-shadow-primary {
+    syntax: "*";
+    initial-value: none;
+    inherits: false;
+}
+
+@property --box-shadow-glow {
+    syntax: "*";
+    initial-value: none;
+    inherits: false;
+}
+
+@property --box-shadow-glow-inset {
+    syntax: "*";
+    initial-value: none;
+    inherits: false;
+}
+
+/* Dynamic states for auto-computations */
+
+@property --active {
+    syntax: "<number>";
+    initial-value: 0;
+    inherits: true;
+}
+
+@property --checked {
+    syntax: "<number>";
+    initial-value: 0;
+    inherits: true;
+}
+
+@property --hovered {
+    syntax: "<number>";
+    initial-value: 0;
+    inherits: true;
+}
+
+@property --focused {
+    syntax: "<number>";
+    initial-value: 0;
+    inherits: true;
+}

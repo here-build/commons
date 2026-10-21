@@ -1,0 +1,195 @@
+@property --color-text-primary {
+    syntax: "<color>";
+    initial-value: oklch(0.96 0 0);
+    inherits: true;
+}
+
+@property --color-text-secondary {
+    syntax: "<color>";
+    initial-value: oklch(0.7 0 0);
+    inherits: true;
+}
+
+@property --color-text-tertiary {
+    syntax: "<color>";
+    initial-value: oklch(0.5 0 0);
+    inherits: true;
+}
+
+@property --color-text-disabled {
+    syntax: "<color>";
+    initial-value: unset;
+    inherits: true;
+}
+
+@property --lightness-neutral {
+    syntax: "<number>";
+    initial-value: unset;
+    inherits: true;
+}
+
+@property --lightness-emphasis {
+    syntax: "<number>";
+    initial-value: unset;
+    inherits: true;
+}
+
+@property --chroma-emphasis {
+    syntax: "<number>";
+    initial-value: 0;
+    inherits: true;
+}
+
+@property --lightness-emphasis-text {
+    syntax: "<number>";
+    initial-value: 0.35;
+    inherits: true;
+}
+
+@property --chroma-emphasis-text {
+    syntax: "<number>";
+    initial-value: 0;
+    inherits: true;
+}
+@property --color-neutral {
+    syntax: "<color>";
+    initial-value: unset;
+    inherits: true;
+}
+
+@property --color-neutral-interactive {
+    syntax: "<color>";
+    initial-value: unset;
+    inherits: true;
+}
+
+@property --color-neutral-transparent-interactive {
+    syntax: "<color>";
+    initial-value: unset;
+    inherits: true;
+}
+
+@property --color-neutral-text {
+    syntax: "<color>";
+    initial-value: unset;
+    inherits: true;
+}
+
+@property --color-neutral-text-interactive {
+    syntax: "<color>";
+    initial-value: unset;
+    inherits: true;
+}
+
+@property --color-emphasis {
+    syntax: "<color>";
+    initial-value: unset;
+    inherits: true;
+}
+
+@property --color-emphasis-interactive {
+    syntax: "<color>";
+    initial-value: unset;
+    inherits: true;
+}
+
+@property --color-emphasis-transparent-interactive {
+    syntax: "<color>";
+    initial-value: unset;
+    inherits: true;
+}
+
+@property --color-emphasis-text {
+    syntax: "<color>";
+    initial-value: unset;
+    inherits: true;
+}
+
+@property --color-emphasis-text-interactive {
+    syntax: "<color>";
+    initial-value: unset;
+    inherits: true;
+}
+
+
+
+@property --gap-x {
+    syntax: "<length>";
+    initial-value: 16px;
+    inherits: true;
+}
+
+@property --gap-y {
+    syntax: "<length>";
+    initial-value: 16px;
+    inherits: true;
+}
+
+@property --padding-top-borderless {
+    syntax: "<length>";
+    initial-value: 0;
+    inherits: true;
+}
+
+@property --padding-right-borderless {
+    syntax: "<length>";
+    initial-value: 0;
+    inherits: true;
+}
+
+@property --padding-bottom-borderless {
+    syntax: "<length>";
+    initial-value: 0;
+    inherits: true;
+}
+
+@property --padding-left-borderless {
+    syntax: "<length>";
+    initial-value: 0;
+    inherits: true;
+}
+
+@property --padding-top {
+    syntax: "<length>";
+    initial-value: 0;
+    inherits: true;
+}
+
+@property --padding-right {
+    syntax: "<length>";
+    initial-value: 0;
+    inherits: true;
+}
+
+@property --padding-bottom {
+    syntax: "<length>";
+    initial-value: 0;
+    inherits: true;
+}
+
+@property --padding-left {
+    syntax: "<length>";
+    initial-value: 0;
+    inherits: true;
+}
+
+@property --🔧layout-padding-top {
+    syntax: "<length>";
+    initial-value: 0;
+    inherits: true;
+}
+@property --🔧layout-padding-bottom {
+    syntax: "<length>";
+    initial-value: 0;
+    inherits: true;
+}
+@property --🔧layout-padding-left {
+    syntax: "<length>";
+    initial-value: 0;
+    inherits: true;
+}
+@property --🔧layout-padding-right {
+    syntax: "<length>";
+    initial-value: 0;
+    inherits: true;
+}

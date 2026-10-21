@@ -1,0 +1,11 @@
+.testModule {
+  padding: calc(var(--⚙️grid-step) * 2);
+  border: 2px solid var(--color-emphasis);
+  border-radius: var(--border-radius);
+  background: var(--color-surface);
+}
+
+.highlight {
+  color: var(--color-accent);
+  font-weight: 600;
+}

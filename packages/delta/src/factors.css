@@ -1,0 +1,548 @@
+@import "./factors-properties.css";
+
+@custom-selector :--element .Δaction, .Δgroup, .Δcontrol, .Δdisplay, .Δcontainer;
+
+@custom-selector :--not-element :not(.Δaction, .Δgroup, .Δcontrol, .Δdisplay, .Δcontainer);
+
+@custom-selector :--interactive :where(.Δhoverable, .Δcheckable, .Δfocusable, .Δactivable);
+
+@custom-selector :--hovered :where(.Δhoverable:hover, .Δhoverable.Δis-hover, .Δhoverable:has(:hover, .Δis-hover));
+
+@custom-selector :--checked :where(.Δcheckable:checked, .Δcheckable.Δis-checked, .Δcheckable:has(:checked, .Δis-checked));
+
+@custom-selector :--focused :where(.Δfocusable:has(:focus-visible), .Δfocusable:focus-visible);
+
+@custom-selector :--active :where(.Δactivable:active, .Δactivable.Δis-active, .Δactivable:has(:active, .Δis-active));
+
+@custom-selector :--highlighted :where(:--hovered, :--checked, :--focused, :--active);
+
+@layer delta.factors {
+    /*
+    FACTORS — orthogonal parameter axes of the computation space.
+
+    Factors are NOT members of the entity × modifier cross-product (see foundation.css).
+    They are pure parameter injectors: each class sets a single CSS custom property that
+    feeds downstream computations. Semantically equivalent to writing --density-factor: 2
+    directly — the class form is chosen because many component libraries do not allow
+    passing custom data attributes internally, while className is universally supported.
+    Classes converge all usage to a single mechanism: classnames + CSS custom properties.
+
+    Six factor axes:
+      surface lightness   where on the elevation stack this context sits
+      intent              semantic primitive hierarchy (action → display)
+      emphasis            hue identity — which color family the element belongs to.
+                          Also implies default chroma tier and prominence level (e.g. accent
+                          defaults to primary chroma + strong prominence), but these are
+                          low-specificity fallbacks via :where() — explicit .Δprominence-*
+                          or chroma overrides always win. This is why prominence declarations
+                          appear to duplicate emphasis groupings: same values, different
+                          specificity paths.
+      prominence          how boldly the element expresses its color
+      density             spatial comfort — padding and gap breathing room
+      scale               content size — font, icons
+
+    Cascade behavior:
+      Most factors reset at every element boundary — each element declares its own identity.
+      Density and scale are exceptions: they flow through container boundaries, so a compact
+      panel's children inherit compact density without each one redeclaring it.
+      .Δinherits (and granular .Δinherits-*) suppresses the reset, letting a child inherit
+      its parent's factor value instead of resetting to default.
+    */
+    /*
+    SURFACE ELEVATION — relative, self-nesting (was: absolute canvas/base/raised tiers).
+
+    A surface is "the underlay you're working with." Elevation is RELATIVE: each nested
+    surface steps one rung lighter than the surface that contains it. Dark-theme elevation
+    reads through progressive lightening, not shadows (shadows vanish on dark backgrounds).
+
+    The recurrence is a CSS container *style* query reading the parent surface's level. No JS,
+    no cascade cycle: the query reads an ANCESTOR's value as a match condition, so the read and
+    the write never land on the same element — the cycle that defeats @scope + tick-tock. Only
+    the integer --🧮surface-level propagates; each rung's lightness is a baked literal.
+
+      rung  L     step   note
+      0     0.04  —      canvas: darkest usable. Pure black (0.0) causes halation (white text
+                         appears to glow for ~50% of astigmatic users); 0.04 is LCD/OLED-safe.
+      1     0.14  +.10   base: first elevation tier (≥ 7.4% JND brightness step)
+      2     0.20  +.06   raised; overlays re-root here (float above base, not canvas)
+      3     0.24  +.04
+      4     0.27  +.03   sub-JND soft ceiling
+      5     0.29  +.02   ceiling — deeper nesting clamps here
+
+    Tune the ramp by editing the literals below. The named tier classes (.Δsurface-canvas /
+    -base / -raised) survive as ABSOLUTE PINS — explicit re-roots, no longer the model.
+    */
+    /* Base case + flat fallback. --🧮surface-level is the only thing that
+       propagates; each rung's lightness is a baked literal (no per-frame calc).
+       Where container style queries are off (Firefox < 151) the @container blocks
+       below no-op and every surface sits flat at base (0.14) — functional, just
+       un-stepped. */
+    :root {
+        --🧮surface-level: 0;
+        --🔧lightness-surface: 0.04;
+    }
+
+    :where(.Δsurface, .Δoverlay) {
+        --🔧lightness-surface: 0.14;
+    }
+
+    /* Absolute pins — re-root the relative chain (escape hatches, not the model).
+       Higher specificity than the relative ladder, so they win wherever applied,
+       and their children step on from the pinned rung. */
+    .Δsurface.Δsurface-canvas {
+        --🧮surface-level: 0;
+        --🔧lightness-surface: 0.04;
+    }
+
+    .Δsurface.Δsurface-base {
+        --🧮surface-level: 1;
+        --🔧lightness-surface: 0.14;
+    }
+
+    .Δsurface.Δsurface-raised {
+        --🧮surface-level: 2;
+        --🔧lightness-surface: 0.2;
+    }
+
+    /* Overlays float above base regardless of mount depth → re-root to the raised
+       rung. Surfaces inside an overlay step on from there. */
+    .Δoverlay {
+        --🧮surface-level: 2;
+        --🔧lightness-surface: 0.2;
+    }
+
+    /* Relative recurrence — each rung reads the CONTAINING surface's level (a style
+       query reads an ancestor as a match condition, so read and write never land on
+       the same element: no cascade cycle). Bare .Δsurface = +1; .Δsurface\+ = +2;
+       .Δsurface\- = +0 (sits at the container's level). Intermediate non-surface
+       wrappers pass the level through by inheritance. */
+    @container style(--🧮surface-level: 0) {
+        :where(.Δsurface) { --🧮surface-level: 1; --🔧lightness-surface: 0.14; }
+        .Δsurface\+       { --🧮surface-level: 2; --🔧lightness-surface: 0.2; }
+        .Δsurface\-       { --🧮surface-level: 0; --🔧lightness-surface: 0.04; }
+    }
+    @container style(--🧮surface-level: 1) {
+        :where(.Δsurface) { --🧮surface-level: 2; --🔧lightness-surface: 0.2; }
+        .Δsurface\+       { --🧮surface-level: 3; --🔧lightness-surface: 0.24; }
+        .Δsurface\-       { --🧮surface-level: 1; --🔧lightness-surface: 0.14; }
+    }
+    @container style(--🧮surface-level: 2) {
+        :where(.Δsurface) { --🧮surface-level: 3; --🔧lightness-surface: 0.24; }
+        .Δsurface\+       { --🧮surface-level: 4; --🔧lightness-surface: 0.27; }
+        .Δsurface\-       { --🧮surface-level: 2; --🔧lightness-surface: 0.2; }
+    }
+    @container style(--🧮surface-level: 3) {
+        :where(.Δsurface) { --🧮surface-level: 4; --🔧lightness-surface: 0.27; }
+        .Δsurface\+       { --🧮surface-level: 5; --🔧lightness-surface: 0.29; }
+        .Δsurface\-       { --🧮surface-level: 3; --🔧lightness-surface: 0.24; }
+    }
+    /* Rungs 4–5 are the sub-JND soft ceiling; deeper nesting clamps at 5. */
+    @container style(--🧮surface-level: 4) {
+        :where(.Δsurface) { --🧮surface-level: 5; --🔧lightness-surface: 0.29; }
+    }
+    @container style(--🧮surface-level: 5) {
+        :where(.Δsurface) { --🧮surface-level: 5; --🔧lightness-surface: 0.29; }
+    }
+
+    :root, .Δsurface, .Δoverlay {
+        /*
+        0.15: the base lightness gap between a surface and the elements sitting on it.
+        Research: "8% increments provide clear differentiation, 12% create strong distinction."
+        0.15 (15%) is deliberately strong — elements must read clearly against their surface, not blend.
+        Elements then add interaction state on top of this base increment (see foundation.css).
+
+        Tune: 0.10 for a flatter, subtler element-surface relationship. 0.20 for maximum element
+        pop against surface (higher contrast design language).
+        */
+        --🔧lightness-element-increment: 0.1;
+    }
+
+    /* PRESENCE — the passive spatial footprint of the element.
+       Not "look at me" (that's prominence/emphasis) but "I am this large" — a constatation,
+       not an action. Sets scale-factor feeding font-size (pow(1.25, n)), gap, and padding.
+       Each step = one Major Third interval; -1 to +2 spans 0.8×–1.56× base. */
+    .Δpresence-subtle,
+    .Δsubtle {
+        --🔧scale-factor: -1;
+    }
+
+    .Δpresence-regular,
+    .Δregular {
+        --🔧scale-factor: 0;
+    }
+
+    .Δpresence-strong,
+    .Δstrong {
+        --🔧scale-factor: 1;
+    }
+
+    .Δpresence-bold,
+    .Δbold {
+        --🔧scale-factor: 2;
+    }
+
+
+    /* AFFINITY — Gestalt proximity encoded as a numeric axis.
+       Subtracts from gap-factor: higher affinity → smaller gap → siblings cluster tighter.
+       Acts like a spring constant in a simplified force-directed model: attractive (positive)
+       pulls related elements together, repulsive (negative) pushes distinct groups apart.
+
+       Factor algebra operates on intent, not produced values — you compose semantic
+       relationships (intimate + compact + small-scale) and the math resolves the pixels.
+
+       intimate (2): visually fused, minimal separation
+       affine (1): clearly related, comfortable breathing room
+       default (0): neutral — no proximity bias
+       unrelated/antiaffine (-1): pushed apart, distinct groups */
+    .Δaffinity-intimate,
+    .Δintimate {
+        --🔧affinity-factor: 2;
+    }
+
+    .Δaffinity-affine,
+    .Δaffine {
+        --🔧affinity-factor: 1;
+    }
+
+    .Δaffinity-default,
+    .Δdefault {
+        --🔧affinity-factor: 0;
+    }
+
+    .Δaffinity-unrelated,
+    .Δunrelated {
+        --🔧affinity-factor: -1;
+    }
+
+    .Δaffinity-antiaffine,
+    .Δantiaffine {
+        --🔧affinity-factor: -1;
+    }
+
+
+    :root, .Δsurface, .Δoverlay,
+    :--element:not(.Δinherits, .Δinherits-factors, .Δinherits-emphasis-factor) {
+        --🔧hue-emphasis: var(--⚙️hue-neutral);
+        --🔧chroma-emphasis: var(--⚙️chroma-neutral);
+    }
+
+    /* yielding specifity for overrides */
+    .Δcontainer {
+        :--element {
+            --🔧hue-emphasis: inherit;
+            --🔧chroma-emphasis: inherit;
+        }
+    }
+
+    :root, .Δsurface, .Δoverlay, .Δtext, :--element {
+        &.Δemphasis-unset {
+            --🔧hue-emphasis: var(--⚙️hue-emphasis-accent);
+            --🔧chroma-emphasis: 0;
+            --🔧min-chroma: 0;
+        }
+
+        &.Δemphasis-info {
+            --🔧hue-emphasis: var(--⚙️hue-emphasis-info);
+        }
+
+        &.Δemphasis-accent {
+            --🔧hue-emphasis: var(--⚙️hue-emphasis-accent);
+        }
+
+        &.Δemphasis-success {
+            --🔧hue-emphasis: var(--⚙️hue-emphasis-success);
+        }
+
+        /* specialized emphasis overrides info/accent/success */
+
+        &.Δemphasis-variant {
+            --🔧hue-emphasis: var(--⚙️hue-emphasis-variant);
+        }
+
+        &.Δemphasis-data {
+            --🔧hue-emphasis: var(--⚙️hue-emphasis-data);
+        }
+
+        /* warning, danger, error emphasis overrides any other emphasis class */
+
+        &.Δemphasis-warning {
+            --🔧hue-emphasis: var(--⚙️hue-emphasis-warning);
+        }
+
+        &.Δemphasis-danger {
+            --🔧hue-emphasis: var(--⚙️hue-emphasis-danger);
+        }
+
+        &.Δemphasis-error {
+            --🔧hue-emphasis: var(--⚙️hue-emphasis-error);
+        }
+
+        /*
+        CHROMA TIERS — functional urgency hierarchy.
+
+        Chroma (saturation) communicates how urgently the element demands attention.
+        The tiers map directly to functional urgency, not aesthetic preference:
+
+        primary chroma   accent/warning/danger: should pull focus. These are "do something now"
+                         or "this is the main path." Accent = primary CTA. Warning/danger = stop.
+        secondary chroma error/variant/data: valuable signals, worth noticing, not alarming.
+                         Error differs from danger: danger prevents action, error explains a result.
+        tertiary chroma  success/info: informational, confirming, ambient. Low urgency.
+                         Success doesn't need to shout — the user already did the thing.
+
+        The Visual Grammar principle: chroma acts like volume. Mismatching urgency to chroma
+        volume creates noise (everything screaming) or confusion (urgent things whisper).
+        */
+
+        &.Δemphasis-accent,
+        &.Δemphasis-warning,
+        &.Δemphasis-danger {
+            --🔧chroma-emphasis: var(--⚙️chroma-primary); /* Should pull focus */
+        }
+
+        &.Δemphasis-error,
+        &.Δemphasis-variant,
+        &.Δemphasis-data {
+            --🔧chroma-emphasis: var(--⚙️chroma-secondary); /* Valuable */
+        }
+
+        &.Δemphasis-success,
+        &.Δemphasis-info {
+            --🔧chroma-emphasis: var(--⚙️chroma-tertiary); /* Informational */
+        }
+
+        &.Δemphasis-accent,
+        &.Δemphasis-warning,
+        &.Δemphasis-danger,
+        &.Δemphasis-error,
+        &.Δemphasis-variant,
+        &.Δemphasis-data,
+        &.Δemphasis-success,
+        &.Δemphasis-info {
+            --🔧min-chroma: 0.03;
+        }
+    }
+
+    /*
+    INTENT — the semantic primitive hierarchy encoded as a single numeric axis.
+
+    Interface design science identifies four cognitive primitives in order of visual prominence:
+      Action   "press this to make something happen"  — must invite, stand out, be discoverable
+      Control  "adjust this to set a value"           — precise, current state must be clear
+      Group    "this holds related things together"   — recedes to emphasize contents
+      Display  "this shows information"               — most recessive, content should not compete
+
+    The intent-factor encodes this as: action=0, control=-1, group=-2, display=-3.
+    Each step of -1 reduces emphasis through the pow(1.25, intent × lightness-inversion) term
+    in --lightness-emphasis. The intent-factor of 0 (action) is the reference point;
+    negative values progressively reduce how much color/lightness emphasis is applied.
+
+    Group context propagation: when a group contains a display or control, ALL siblings
+    equalize to that lowest-intent level. This prevents visual chaos where action elements
+    inside a display-group still "shout" at the same volume as standalone actions.
+    */
+    :root, .Δsurface, .Δoverlay,
+    :--element:not(.Δinherits, .Δinherits-factors, .Δinherits-intent-factor) { /* reset selector */
+        /* Background semantic intent - single factor, mathematical progression */
+        --🔧intent-factor: 0; /* Default: no modification */
+    }
+
+    .Δdisplay,
+    .Δgroup.Δdisplay > .Δaction,
+    .Δgroup.Δdisplay > .Δgroup,
+    .Δgroup.Δdisplay > .Δcontrol,
+    .Δgroup.Δdisplay > .Δdisplay,
+    .Δgroup.Δdisplay > .Δcontainer {
+        --🔧intent-factor: -3;
+    }
+
+    .Δgroup { /* visual grouping */
+        --🔧intent-factor: -2;
+    }
+
+    .Δcontrol,
+    .Δgroup.Δcontrol > .Δaction,
+    .Δgroup.Δcontrol > .Δgroup,
+    .Δgroup.Δcontrol > .Δcontrol,
+    .Δgroup.Δcontrol > .Δdisplay,
+    .Δgroup.Δcontrol > .Δcontainer { /* Value representation + interactivity intent */
+        --🔧intent-factor: -1;
+    }
+
+    .Δaction,
+    .Δgroup.Δaction > .Δaction,
+    .Δgroup.Δaction > .Δgroup,
+    .Δgroup.Δaction > .Δcontrol,
+    .Δgroup.Δaction > .Δdisplay,
+    .Δgroup.Δaction > .Δcontainer { /* interactivity intent */
+        --🔧intent-factor: 0;
+    }
+
+
+    /*
+    DENSITY and SCALE — two independent spatial axes.
+
+    These are orthogonal: scale affects type size and icon size (content prominence),
+    density affects padding and gap (spatial comfort and information density). You can have
+    large-scale compact elements (big icons in tight rows) or small-scale spacious elements
+    (tiny labels with generous breathing room). Both feed into the same spatial formula but
+    through different terms.
+
+    gap-factor    = density + scale - affinity  (see foundation.css)
+    padding-factor = density + scale
+
+    "hard" inheritable: these aren't universally defaulted at :root because density and scale
+    should flow contextually — a panel can be compact while a dialog is default density.
+    Container does NOT reset these, enabling density/scale to flow through container boundaries.
+    */
+    /* DENSITY: controls padding and gap — how tightly elements breathe */
+    :root, .Δsurface, .Δoverlay, .Δlayout, :--element {
+        &.Δdensity-compact {
+            --🔧density-factor: -2;
+        }
+
+        &.Δdensity-small {
+            --🔧density-factor: -1;
+        }
+
+        &.Δdensity-default {
+            --🔧density-factor: 0;
+        }
+
+        &.Δdensity-large {
+            --🔧density-factor: 1;
+        }
+
+        &.Δdensity-spacious {
+            --🔧density-factor: 2;
+        }
+    }
+
+    /* SCALE: controls font size and icon size — how large the content itself is */
+    :root, .Δsurface, .Δoverlay, .Δlayout, :--element {
+        &.Δscale-xs {
+            --🔧scale-factor: -2;
+        }
+
+        &.Δscale-small {
+            --🔧scale-factor: -1;
+        }
+
+        &.Δscale-default {
+            --🔧scale-factor: 0;
+        }
+
+        &.Δscale-large {
+            --🔧scale-factor: 1;
+        }
+
+        &.Δscale-xl {
+            --🔧scale-factor: 2;
+        }
+    }
+
+    /* INTERACTIVITY — entity-level behavioral variance, decoupled from DOM structure.
+
+       Delta entities and HTML elements are not tangled. "Δcontrol Δfocusable" means
+       "this entity has focus variance" — it doesn't require the focusable element to be
+       the root. :has(:focus-visible) detects the state anywhere in the entity's subtree.
+       This decouples from the underlying DOM: internal restructuring doesn't break states.
+
+       Inherits Figma/Plasmic's insight that variance exists on the entity, not the element.
+       Not "this DOM node is hovered, which means something" but "this entity has a
+       representation variance on being hovered." Lifting variance from element to entity
+       is the alternate path (vs Tailwind's element-level doubling-down) to CSS's fundamental
+       struggle: CSS is a powerful language, but it's an IR interpreted as target language.
+       What was needed was behavioral/state/parameter/media variance on entities.
+
+       Implementation: binary 0/1 flags for calc()-based conditionals (same pattern as
+       within-filled-context/beyond-filled-context). Three detection paths per state:
+         pseudo-class (:active), programmatic (.Δis-active), bubbled (:has(:active)).
+       Active has nested reset: if a child activable is active, parent's --active reverts
+       to 0 — prevents double-active bubbling up the tree. */
+    :root, .Δsurface, .Δoverlay, :--element {
+        &.Δactivable {
+            --active: 0;
+        }
+
+        &.Δcheckable {
+            --checked: 0;
+        }
+
+        &.Δhoverable {
+            --hovered: 0;
+        }
+
+        &.Δfocusable {
+            --focused: 0;
+        }
+    }
+
+    :--element:not(.Δinherits, .Δinherits-factors, .Δinherits-interactivity-factor) {
+        &:--active {
+            --active: 1;
+
+            &:has(:--active) {
+                --active: 0;
+            }
+        }
+
+        &:--checked {
+            --checked: 1;
+        }
+
+        &:--hovered {
+            --hovered: 1;
+        }
+
+        &:--focused {
+            --focused: 1;
+        }
+    }
+    @layer prominence {
+        @layer defaults {
+            :where(.Δcontainer) :--element {
+                --🎛prominence-lightness-modifier: inherit;
+                --🎛prominence-chroma-modifier: inherit;
+                --🎛prominence-text-chroma-modifier: inherit;
+            }
+
+            :root, .Δsurface, .Δoverlay {
+                --🎛prominence-lightness-modifier: 1.83;
+                --🎛prominence-chroma-modifier: 0.9;
+                --🎛prominence-text-chroma-modifier: 1.7;
+                --🎛prominence-border-alpha: 0.7;
+            }
+        }
+        .Δprominence-ambient, /* Ambient prominence - informational */
+        :where(.Δemphasis-info, .Δemphasis-success, .Δemphasis-variant) { /* where is not raising the specifity, acting as "default fallback" */
+            --🎛prominence-lightness-modifier: 1;
+            --🎛prominence-chroma-modifier: 0.3;
+            --🎛prominence-text-chroma-modifier: 1.2;
+            --🎛prominence-border-alpha: 0.3;
+        }
+
+        .Δprominence-strong,
+        :where(.Δemphasis-accent, .Δemphasis-error, .Δemphasis-danger) {
+            --🎛prominence-lightness-modifier: 2.2;
+            --🎛prominence-chroma-modifier: 2.2;
+            --🎛prominence-text-chroma-modifier: 1.9;
+        }
+        :--element {
+            &.Δinherits, &.Δinherits-factors, &.Δinherits-prominence-factor {
+                --🎛prominence-lightness-modifier: inherit;
+                --🎛prominence-chroma-modifier: inherit;
+                --🎛prominence-text-chroma-modifier: inherit;
+                --🎛prominence-border-alpha: inherit;
+            }
+
+            &.Δprominence-default,
+            &.Δdefault {
+                --🎛prominence-lightness-modifier: revert-layer;
+                --🎛prominence-chroma-modifier: revert-layer;
+                --🎛prominence-text-chroma-modifier: revert-layer;
+                --🎛prominence-border-alpha: revert-layer;
+            }
+        }
+    }
+}
