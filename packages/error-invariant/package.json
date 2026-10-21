@@ -1,6 +1,6 @@
 {
   "name": "@here.build/error-invariant",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "description": "Global Error.invariant assertion helper (augments ErrorConstructor; TypeError.invariant resolves via constructor prototype inheritance)",
   "license": "MIT",
   "author": "here.build",

@@ -50,7 +50,8 @@ export default { plugins: [oklchPlus({ /* options */ })] };
 ```
 
 Options: `lightnessFactor` (H-K sign/scale, default `1`), `chromaCap` (default `0.35`), `precision`
-(default `4`), `gamut` (default `"p3"`), and `safeName` / `hkName` / `safeHkName`.
+(default `4`), `gamut` (default `"p3"`). Function names are fixed: `safe` / `oklch-safe`, `hk` /
+`oklch-hk`, `safe-hk` / `oklch-safe-hk`.
 
 ### The H-K model
 

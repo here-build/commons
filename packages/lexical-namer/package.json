@@ -1,6 +1,6 @@
 {
   "name": "@here.build/lexical-namer",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "description": "Lexical-scope-aware name assignment. Takes a scope tree of entities with prioritized name candidates, returns a non-colliding assignment that respects parent-chain visibility, sibling independence, and symmetric tie resolution.",
   "license": "FSL-1.1-MIT",
   "author": "here.build",

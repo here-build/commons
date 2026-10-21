@@ -16,6 +16,8 @@ new EditorView({
 
 Drop `theme` on any CM6 editor. Enable `@codemirror/{autocomplete,lint,language}` and completion popups, lint panels, match marks, fold, and bracket matching pick up the shared vocabulary without further styling.
 
+Peers, provided by the host: `@codemirror/commands`, `@codemirror/language`, `@codemirror/search`, `@codemirror/state`, `@codemirror/view` (`^6`) and `@lezer/highlight` (`^1`). `ideaSearch()` loads `@codemirror/search`.
+
 ### IDEA-style find / replace
 
 ```ts

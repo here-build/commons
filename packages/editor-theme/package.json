@@ -1,6 +1,6 @@
 {
   "name": "@here.build/editor-theme",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "description": "Hermetic CodeMirror 6 look: self-hosted fonts (JetBrains Mono writing / Monaspace reading) + H-K-compensated Darcula + full overlay/form/mark chrome. No CDN.",
   "license": "MIT",
   "author": "here.build",

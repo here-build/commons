@@ -1,6 +1,6 @@
 {
   "name": "@here.build/postcss-oklch-plus",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "description": "oklch, but better: a correctly-gamut-clamped oklch() and a Helmholtz-Kohlrausch lightness-compensated oklchhk() — that partially-evaluate their trig away at build time. Static hue ⇒ zero runtime trig.",
   "license": "MIT",
   "author": "here.build",
